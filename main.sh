@@ -65,6 +65,13 @@ createLogFile () {
 	touch ${logFile}
 }
 
+addCommitToLogFile () {
+	#assumptions: $1 is a repository index, $2 is a commit message, $3 is timestamp, log file exists
+	cd $HOME
+	cd .${repositoryPaths[$1]}/${repositories[$1]}
+	echo "${3} ${2}" > ${logFile}
+}
+
 listFiles () {
     	#assumptions: $1 is a repository index
 	cd $HOME
@@ -95,4 +102,14 @@ clearStagingFolder () {
 	for i in $(ls); do
 		moveFromStagingFolder $i 
 	done
+}
+
+makeCommit () {
+	#assumptions: $1 is a repository index, $2 is a commit message
+	local timestamp=$(date +%s)
+	addCommitToLogFile "$1" "$2" "$timestamp"
+	cd $HOME
+	cd .${repositoryPaths[$1]}/${repositories[$1]}
+	mkdir $timestamp
+	mv ./${stagingFolder}/* ./$timestamp
 }
