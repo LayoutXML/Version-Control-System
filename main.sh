@@ -1,6 +1,10 @@
 #!/bin/bash
 
-#consts - case names
+
+currentDir=$HOME
+configFile="jet.cfg"
+logFile="log.txt"
+
 doAction() {
 	case $1 in
 		access)
@@ -30,8 +34,8 @@ saveConfig() {
 	cd $currentDir
 }
 
-currentDir=$HOME
-configFile="jet.cfg"
+#repositories - array, initialised in config reading
+#openRepoIndex - index of currently open repository
 
 if [ $# -eq 0 ]; then
 	echo "Invalid number of arguments"
