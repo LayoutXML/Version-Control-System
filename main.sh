@@ -17,6 +17,28 @@ doAction() {
 	esac 
 }
 
+printMenu() {
+	echo "Jet Version Control"
+	echo "jethelp - prints this menu"
+	echo "access [x]- change your current working directory to x"
+	echo "list - lists all files in the current working directory"
+	echo "Enter a command to get started."
+	echo "-------------------------------------------------------" 
+}
+
+readMenuOptions() {
+	local option
+	read option
+	case $option in
+		jethelp)
+			printMenu ;;
+		access)
+			doAction access ;;
+		list)
+			doAction list ;;
+	esac
+}
+
 loadConfig() {
 	cd $HOME
 	if [ -f "$configFile" ]
