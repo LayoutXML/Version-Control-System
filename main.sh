@@ -23,6 +23,10 @@ readMenuOptions () {
 			doAction access ;;
 		list)
 			listFiles ;;
+        	zip)
+            		zipRep ;;
+        	archive)
+            		archiveRep ;;
 	esac
 }
 
@@ -66,12 +70,21 @@ createLogFile () {
 }
 
 listFiles () {
-    	#assumptions: $1 is a repository index
+    #assumptions: $1 is a repository index
 	cd $HOME
 	cd .${repositoryPaths[$1]}/${repositories[$1]}
 	ls
 }
 
+zipRep () {
+    #assumptions: $1 is a repository index
+    zip -r myRep.zip ${repositoryPaths[$1]}/${repositories[$1]}
+}
+
+archiveRep () {
+    #assumptions: $1 is a repository index
+    tar -cvf myRep.tar ${repositoryPaths[$1]}/${repositories[$1]}
+}
 
 moveToStagingFolder () {
 	#assumptions: in the rep folder , $1 is a file name
