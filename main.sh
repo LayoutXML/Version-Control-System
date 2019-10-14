@@ -22,7 +22,7 @@ readMenuOptions () {
 		access)
 			doAction access ;;
 		list)
-			doAction list ;;
+			listFiles ;;
 	esac
 }
 
@@ -63,7 +63,16 @@ createLogFile () {
 	cd $HOME
 	cd .${repositoryPaths[$1]}/${repositories[$1]}
 	touch ${logFile}
-  
+}
+
+listFiles () {
+    	#assumptions: $1 is a repository index
+	cd $HOME
+	cd .${repositoryPaths[$1]}/${repositories[$1]}
+	ls
+}
+
+
 moveToStagingFolder () {
 	#assumptions: in the rep folder , $1 is a file name
 	cp $1 /.$repositories[$openRepoIndex]/$stagingFolder/$1
