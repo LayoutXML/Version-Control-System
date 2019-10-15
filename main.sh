@@ -61,7 +61,7 @@ createRepository () {
 createLogFile () {
 	#assumptions: $1 is a repository index
 	cd $HOME
-	cd .${repositoryPaths[$1]}/${repositories[$1]}
+	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
 	touch ${logFile}
 }
 
@@ -102,6 +102,21 @@ clearStagingFolder () {
 	for i in $(ls); do
 		moveFromStagingFolder $i 
 	done
+}
+
+reverseCommit () {
+	#assumptions: $1 is a repository index, $2 is a commit timestamp
+	local timestamp=$(date +%s)
+	addCommitToLogFile "$1" "Reversed commit $2" "$timestamp"
+	cd $HOME
+	cd ./${repositoryPaths[$1]}
+	for i in $(ls); do
+		if [ i -ne ${repositories[$1]} ]
+			rm i
+		fi
+	done
+	mv ./.${repositories[$1]}/$2 ./
+	rm -r ./.${repositories[$1]}/$2
 }
 
 makeCommit () {
