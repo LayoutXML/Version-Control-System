@@ -4,32 +4,6 @@ configFile="jet.cfg"
 logFile="log.txt"
 stagingFolder="staging"
 
-printMenu () {
-	echo "Jet Version Control"
-	echo "jethelp - prints this menu"
-	echo "access [x]- change your current working directory to x"
-	echo "list - lists all files in the current working directory"
-	echo "Enter a command to get started."
-	echo "-------------------------------------------------------" 
-}
-
-readMenuOptions () {
-	local option
-	read option
-	case $option in
-		jethelp)
-			printMenu ;;
-		access)
-			doAction access ;;
-		list)
-			listFiles ;;
-        	zip)
-            		zipRep ;;
-        	archive)
-            		archiveRep ;;
-	esac
-}
-
 loadConfig () {
 	cd $HOME
 	if [ -f "$configFile" ]
@@ -77,7 +51,7 @@ addCommitToLogFile () {
 }
 
 listFiles () {
-    #assumptions: $1 is a repository index
+  #assumptions: $1 is a repository index
 	cd $HOME
 	cd ./${repositoryPaths[$1]}
 	ls
@@ -119,8 +93,53 @@ clearStagingFolder () {
 	done
 }
 
-findRepo () {
+printMenu () {
+	echo "Jet Version Control"
+	echo "jethelp - prints this menu"
+	echo "create - creates a new repository"
+	echo "access [x]- change your current working directory to x"
+	echo "list - lists all files in the current working directory"
+	echo "loadconfig - loads configuration file"
+	echo "saveconfig - saves configuration file"
+	echo "log - creates a new log file"
+	echo "stage - moves file to staging folder"
+	echo "unstage - moves a file from the staging folder"
+	echo "stageclear - clears out the staging folder"
 
+	echo "exit - exits Jet"
+	echo "-------------------------------------------------------"
+
+	PS3 = "Enter a command:"
+	select option in jethelp create access list loadconfig saveconfig log stage unstage stageclear exit
+	do
+		case $option in
+			jethelp) 
+				printMenu ;;
+			create)
+				createRepository ;;
+			access)
+				doAction ;;
+			list)
+				listFiles ;;
+			loadconfig)
+				loadConfig ;;
+			saveconfig)
+				saveConfig ;;
+			log)
+				createLogFile ;;
+			stage)
+				moveToStagingFolder ;;
+			unstage)
+				moveFromStagingFolder ;;
+			stageclear)
+				clearStagingFolder ;;
+			exit)
+				exit ;;
+		esac
+	done
+}
+
+findRepo () {
 	echo "Enter the name of repository you'd like to find:"
 	read repo
 	if[ -d $repo ]
