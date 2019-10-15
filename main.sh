@@ -72,18 +72,20 @@ createLogFile () {
 listFiles () {
     #assumptions: $1 is a repository index
 	cd $HOME
-	cd .${repositoryPaths[$1]}/${repositories[$1]}
+	cd ./${repositoryPaths[$1]}
 	ls
 }
 
 zipRep () {
-    #assumptions: $1 is a repository index
-    zip -r myRep.zip ${repositoryPaths[$1]}/${repositories[$1]}
+	#assumptions: $1 is a repository index
+	cd $HOME
+	zip -r ${repositories[$1]}.zip ./${repositoryPaths[$1]}
 }
 
 archiveRep () {
-    #assumptions: $1 is a repository index
-    tar -cvf myRep.tar ${repositoryPaths[$1]}/${repositories[$1]}
+	#assumptions: $1 is a repository index
+	cd $HOME
+	tar -cvf ${repositories[$1]}.tar ./${repositoryPaths[$1]}
 }
 
 moveToStagingFolder () {
