@@ -14,10 +14,10 @@ loadConfig () {
 		odd=true
 		while read line; do
 			if [ $odd = true ]; then
-				repositories[${#repositories[@]}]=line
+				repositories[${#repositories[@]}]=$line
 				odd=false
 			else
-				repositoryPaths[${#repositoryPaths[@]}]=line
+				repositoryPaths[${#repositoryPaths[@]}]=$line
 				odd=true
 			fi
 		done < $configFile
@@ -26,20 +26,19 @@ loadConfig () {
 
 saveConfig () {
 	cd $HOME
-	if [ -z "$repositories" ]; then 
+	rm $configFile
 		touch $configFile 
-		for i in "$repositories"; do
-			echo $repositories[$i] >> $configFile
-			echo $repositoryPaths[$i] >> $configFile
+		for i in ${!repositories[@]}; do
+		# if [[ $repositories[$i] == $1 ]]; then
+			echo ${repositories[$i]} >> $configFile
+			echo ${repositoryPaths[$i]} >> $configFile
 		done
-	fi
 }
 
 createRepository () {
 	#assumptions: $1 is a path to the repository, $2 is a repository name
 	cd $HOME
 	cd $1
-	pwd
 	mkdir .${2}
 	mkdir .${2}/${stagingFolder}
 	repositories[${#repositories[@]}]=$2
@@ -57,7 +56,7 @@ addCommitToLogFile () {
 	#assumptions: $1 is a repository index, $2 is a commit message, $3 is timestamp, log file exists
 	cd $HOME
 	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
-	echo "${3} ${2}" > ${logFile}
+	echo "${3} ${2}" >> ${logFile}
 }
 
 listFiles () {
@@ -70,18 +69,14 @@ listFiles () {
 zipRep () {
 	#assumptions: $1 is a repository index
 	cd $HOME
-	zip -r ${repositories[$1]}.zip ./${repositoryPaths[$1]}
-}
-
-archiveRep () {
-	#assumptions: $1 is a repository index
-	cd $HOME
-	tar -cvf ${repositories[$1]}.tar ./${repositoryPaths[$1]}
+	zip -r ./${repositoryPaths[$1]}/${repositories[$1]}.zip ./${repositoryPaths[$1]}
 }
 
 moveToStagingFolder () {
 	#assumptions: in the rep folder , $1 is a file name, $2 rep index
-	cp $1 /.$repositories[$1]/$stagingFolder/$1
+	cd $HOME
+	cd ./${repositoryPaths[$2]}
+	cp ${1} ./.${repositories[$2]}/${stagingFolder}/${1}
 	if [ $? -ne 0 ]; then
 		echo "Cannot move to the staging folder."
 	fi		
@@ -89,7 +84,8 @@ moveToStagingFolder () {
 
 moveFromStagingFolder () {
 	#$1 filename, $2 rep index
-	cd /.$repositories[$2]/$stagingFolder
+	cd $HOME
+	cd ./${repositoryPaths[$2]}/.${repositories[$2]}/${stagingFolder}
 	rm $1
 	if [ $? -ne 0 ]; then
 		echo "Cannot move from the staging folder."
@@ -130,7 +126,8 @@ doAction () {
 			--help) 
 				printMenu ;;
 			create|make)
-				createRepository $3 $2 ;;
+				createRepository $3 $2
+				createLogFile $(findRepoIndex $2) ;;
 			list)
 				listFiles $(findRepoIndex $2) ;;
 			stage|add)
@@ -140,13 +137,11 @@ doAction () {
 			stageclear|resetall)
 				clearStagingFolder $(findRepoIndex $2) ;;
 			commit)
-				makeCommit $(findRepoIndex $2) $3;;
-			reverse)
-				reverseCommit $(findRepoIndex $2) $(date) ;;
+				makeCommit $3 $(findRepoIndex $2) ;;
+			revert)
+				revertCommit $3 $(findRepoIndex $2) ;;
 			zip)
 				zipRep $(findRepoIndex $2);;
-			archive)
-				archiveRep $(findRepoIndex $2);;
 			*)
 				echo "Unknown command" ;;
 		esac
@@ -163,35 +158,38 @@ doAction () {
 #}
 
 findRepoIndex () {
-	shopt -s nocasematch
-	for i in $repositories[@]; do
-		if [[ $repossitories[$1] == i ]]; then
-			echo $1
+	# shopt -s nocasematch
+	for i in ${!repositories[@]}; do
+		# if [[ $repositories[$i] == $1 ]]; then
+		if [ ${repositories[$i]} = $1 ]; then
+			echo $i
 		fi
 	done
 }
 
-reverseCommit () {
-	#assumptions: $1 is a repository index, $2 is a commit timestamp
+revertCommit () {
+	#assumptions: $2 is a repository index, $1 is a commit timestamp
 	local timestamp=$(date +%s)
-	addCommitToLogFile "$1" "Reversed commit $2" "$timestamp"
+	addCommitToLogFile $2 "Reverted commit $1" $timestamp
 	cd $HOME
-	cd ./${repositoryPaths[$1]}
+	cd ./${repositoryPaths[$2]}
 	for i in $(ls); do
-		if [ i -ne ${repositories[$1]} ]; then 
-			rm i
-		fi
+		rm $i
 	done
-	mv ./.${repositories[$1]}/$2 ./
-	rm -r ./.${repositories[$1]}/$2
+	cd ./.${repositories[$2]}/$1
+	for i in $(ls); do
+		mv $i ../..
+	done
+	cd ../..
+	rm -r ./.${repositories[$2]}/$1
 }
 
 makeCommit () {
-	#assumptions: $1 is a repository index, $2 is a commit message
+	#assumptions: $2 is a repository index, $1 is a commit message
 	local timestamp=$(date +%s)
-	addCommitToLogFile "$1" "$2" "$timestamp"
+	addCommitToLogFile $2 $1 $timestamp
 	cd $HOME
-	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
+	cd ./${repositoryPaths[$2]}/.${repositories[$2]}
 	mkdir $timestamp
 	mv ./${stagingFolder}/* ./$timestamp
 }
