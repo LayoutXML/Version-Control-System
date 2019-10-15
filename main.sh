@@ -23,6 +23,10 @@ readMenuOptions () {
 			doAction access ;;
 		list)
 			listFiles ;;
+        	zip)
+            		zipRep ;;
+        	archive)
+            		archiveRep ;;
 	esac
 }
 
@@ -61,17 +65,35 @@ createRepository () {
 createLogFile () {
 	#assumptions: $1 is a repository index
 	cd $HOME
-	cd .${repositoryPaths[$1]}/${repositories[$1]}
+	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
 	touch ${logFile}
 }
 
-listFiles () {
-    	#assumptions: $1 is a repository index
+addCommitToLogFile () {
+	#assumptions: $1 is a repository index, $2 is a commit message, $3 is timestamp, log file exists
 	cd $HOME
-	cd .${repositoryPaths[$1]}/${repositories[$1]}
+	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
+	echo "${3} ${2}" > ${logFile}
+}
+
+listFiles () {
+    #assumptions: $1 is a repository index
+	cd $HOME
+	cd ./${repositoryPaths[$1]}
 	ls
 }
 
+zipRep () {
+	#assumptions: $1 is a repository index
+	cd $HOME
+	zip -r ${repositories[$1]}.zip ./${repositoryPaths[$1]}
+}
+
+archiveRep () {
+	#assumptions: $1 is a repository index
+	cd $HOME
+	tar -cvf ${repositories[$1]}.tar ./${repositoryPaths[$1]}
+}
 
 moveToStagingFolder () {
 	#assumptions: in the rep folder , $1 is a file name
@@ -106,4 +128,29 @@ findRepo () {
 	else
 		echo "Repository $repo wasn't found in the current directory"
 	fi
+}
+
+reverseCommit () {
+	#assumptions: $1 is a repository index, $2 is a commit timestamp
+	local timestamp=$(date +%s)
+	addCommitToLogFile "$1" "Reversed commit $2" "$timestamp"
+	cd $HOME
+	cd ./${repositoryPaths[$1]}
+	for i in $(ls); do
+		if [ i -ne ${repositories[$1]} ]
+			rm i
+		fi
+	done
+	mv ./.${repositories[$1]}/$2 ./
+	rm -r ./.${repositories[$1]}/$2
+}
+
+makeCommit () {
+	#assumptions: $1 is a repository index, $2 is a commit message
+	local timestamp=$(date +%s)
+	addCommitToLogFile "$1" "$2" "$timestamp"
+	cd $HOME
+	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
+	mkdir $timestamp
+	mv ./${stagingFolder}/* ./$timestamp
 }
