@@ -3,33 +3,43 @@
 configFile="jet.cfg"
 logFile="log.txt"
 stagingFolder="staging"
+#repositories - array of repository names, initialised during config reading
+#repositoryPaths - array of repostiroy paths from home folder, initialised during config reading
 
 loadConfig () {
 	cd $HOME
-	if [ -f "$configFile" ]
+	if [ -f "$configFile" ]; then
+		#repositoryName
+		#repositoryPath (relative path, from $HOME)
+		odd=true
+		while read line; do
+			if [ $odd = true ]; then
+				repositories[${#repositories[@]}]=line
+				odd=false
+			else
+				repositoryPaths[${#repositoryPaths[@]}]=line
+				odd=true
+			fi
+		done < $configFile
+	fi
 }
 
 saveConfig () {
 	cd $HOME
-	echo $currentDir >> $configFile
-	if [ -z "$repos" ]
-		for i in "$repos"; do
-			$repos[i] > $configFile 
+	if [ -z "$repositories" ]; then 
+		touch $configFile 
+		for i in "$repositories"; do
+			echo $repositories[$i] >> $configFile
+			echo $repositoryPaths[$i] >> $configFile
 		done
 	fi
 }
 
-#repositories - array of repository names, initialised during config reading
-#repositoryPaths - array of repostiroy paths from home folder, initialised during config reading
-#openRepoIndex - index of currently open repository
-
-if [ $# -eq 0 ]; then
-	echo "Invalid number of arguments"
-fi
-
 createRepository () {
 	#assumptions: $1 is a path to the repository, $2 is a repository name
+	cd $HOME
 	cd $1
+	pwd
 	mkdir .${2}
 	mkdir .${2}/${stagingFolder}
 	repositories[${#repositories[@]}]=$2
@@ -70,15 +80,16 @@ archiveRep () {
 }
 
 moveToStagingFolder () {
-	#assumptions: in the rep folder , $1 is a file name
-	cp $1 /.$repositories[$openRepoIndex]/$stagingFolder/$1
+	#assumptions: in the rep folder , $1 is a file name, $2 rep index
+	cp $1 /.$repositories[$1]/$stagingFolder/$1
 	if [ $? -ne 0 ]; then
 		echo "Cannot move to the staging folder."
 	fi		
 }	
 
 moveFromStagingFolder () {
-	cd /.$repositories[$openRepoIndex]/$stagingFolder
+	#$1 filename, $2 rep index
+	cd /.$repositories[$2]/$stagingFolder
 	rm $1
 	if [ $? -ne 0 ]; then
 		echo "Cannot move from the staging folder."
@@ -87,7 +98,8 @@ moveFromStagingFolder () {
 }
 
 clearStagingFolder () {
-	cd /.$repositories[$openRepoIndex]/$stagingFolder
+	#$1 rep index
+	cd /.$repositories[$1]/$stagingFolder
 	for i in $(ls); do
 		moveFromStagingFolder $i 
 	done
@@ -107,46 +119,56 @@ printMenu () {
 	echo "stageclear - clears out the staging folder"
 
 	echo "exit - exits Jet"
-	echo "-------------------------------------------------------"
+	#echo "-------------------------------------------------------"
 
-	PS3 = "Enter a command:"
-	select option in jethelp create access list loadconfig saveconfig log stage unstage stageclear exit
-	do
-		case $option in
-			jethelp) 
-				printMenu ;;
-			create)
-				createRepository ;;
-			access)
-				doAction ;;
-			list)
-				listFiles ;;
-			loadconfig)
-				loadConfig ;;
-			saveconfig)
-				saveConfig ;;
-			log)
-				createLogFile ;;
-			stage)
-				moveToStagingFolder ;;
-			unstage)
-				moveFromStagingFolder ;;
-			stageclear)
-				clearStagingFolder ;;
-			exit)
-				exit ;;
-		esac
-	done
+	#PS3 = "Enter a command:"
+	
 }
 
-findRepo () {
-	echo "Enter the name of repository you'd like to find:"
-	read repo
-	if[ -d $repo ]
-		echo "Repository $repo exists"
-	else
-		echo "Repository $repo wasn't found in the current directory"
-	fi
+doAction () {
+		case $1 in
+			--help) 
+				printMenu ;;
+			create|make)
+				createRepository $3 $2 ;;
+			list)
+				listFiles $(findRepoIndex $2) ;;
+			stage|add)
+				moveToStagingFolder $3 $(findRepoIndex $2) ;;
+			unstage|reset)
+				moveFromStagingFolder $3 $(findRepoIndex $2) ;;
+			stageclear|resetall)
+				clearStagingFolder $(findRepoIndex $2) ;;
+			commit)
+				makeCommit $(findRepoIndex $2) $3;;
+			reverse)
+				reverseCommit $(findRepoIndex $2) $(date) ;;
+			zip)
+				zipRep $(findRepoIndex $2);;
+			archive)
+				archiveRep $(findRepoIndex $2);;
+			*)
+				echo "Unknown command" ;;
+		esac
+}
+
+#findRepo () {
+#	echo "Enter the name of repository you'd like to find:"
+#	read repo
+#	if[ -d $repo ]
+#		echo "Repository $repo exists"
+#	else
+#		echo "Repository $repo wasn't found in the current directory"
+#	fi
+#}
+
+findRepoIndex () {
+	shopt -s nocasematch
+	for i in $repositories[@]; do
+		if [[ $repossitories[$1] == i ]]; then
+			echo $1
+		fi
+	done
 }
 
 reverseCommit () {
@@ -156,7 +178,7 @@ reverseCommit () {
 	cd $HOME
 	cd ./${repositoryPaths[$1]}
 	for i in $(ls); do
-		if [ i -ne ${repositories[$1]} ]
+		if [ i -ne ${repositories[$1]} ]; then 
 			rm i
 		fi
 	done
@@ -173,3 +195,14 @@ makeCommit () {
 	mkdir $timestamp
 	mv ./${stagingFolder}/* ./$timestamp
 }
+
+if [ $# -eq 0 ]; then
+	echo "Invalid number of arguments"
+fi
+
+#$1 - command name
+#$2 - repository name (not case sensitive)
+#$3... - function arguments
+loadConfig
+doAction "$@"
+saveConfig
