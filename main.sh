@@ -103,7 +103,7 @@ clearStagingFolder () {
 
 printMenu () {
 	echo "Jet Version Control"
-	echo "jethelp - prints this menu"
+	echo "--help - prints this menu"
 	echo "create - creates a new repository"
 	echo "access [x]- change your current working directory to x"
 	echo "list - lists all files in the current working directory"
@@ -113,6 +113,7 @@ printMenu () {
 	echo "stage - moves file to staging folder"
 	echo "unstage - moves a file from the staging folder"
 	echo "stageclear - clears out the staging folder"
+	echo "edit - opens the sublime text editor with the filename given"
 
 	echo "exit - exits Jet"
 	#echo "-------------------------------------------------------"
@@ -141,7 +142,9 @@ doAction () {
 			revert)
 				revertCommit $3 $(findRepoIndex $2) ;;
 			zip)
-				zipRep $(findRepoIndex $2);;
+				zipRep $(findRepoIndex $2) ;;
+			edit)
+				editFile $2 ;;
 			*)
 				echo "Unknown command" ;;
 		esac
@@ -201,6 +204,12 @@ fi
 #$1 - command name
 #$2 - repository name (not case sensitive)
 #$3... - function arguments
+
+editFile () {
+	#assumptions: $1 is a filename located in /home/
+	xdg-open $1
+}
+
 loadConfig
 doAction "$@"
 saveConfig
