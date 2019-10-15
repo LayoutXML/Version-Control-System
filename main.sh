@@ -139,6 +139,16 @@ printMenu () {
 	done
 }
 
+findRepo () {
+	echo "Enter the name of repository you'd like to find:"
+	read repo
+	if[ -d $repo ]
+		echo "Repository $repo exists"
+	else
+		echo "Repository $repo wasn't found in the current directory"
+	fi
+}
+
 reverseCommit () {
 	#assumptions: $1 is a repository index, $2 is a commit timestamp
 	local timestamp=$(date +%s)
