@@ -176,15 +176,16 @@ revertCommit () {
 	addCommitToLogFile $2 "Reverted commit $1" $timestamp
 	cd $HOME
 	cd ./${repositoryPaths[$2]}
-	for i in $(ls); do
-		rm $i
+	for i in *; do
+		if [ "$i" != .$repositories[$2] ]; then
+			rm -r "$i"
+		fi
 	done
 	cd ./.${repositories[$2]}/$1
 	for i in $(ls); do
-		mv $i ../..
+		cp $i ../..
 	done
 	cd ../..
-	rm -r ./.${repositories[$2]}/$1
 }
 
 makeCommit () {
