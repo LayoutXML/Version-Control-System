@@ -72,7 +72,9 @@ zipRep () {
 }
 
 editFile () {
-	#assumptions: $1 is a filename located in /home/
+	#assumptions: $1 is a filename, $2 repository index
+	cd $HOME
+	cd ./${repositoryPaths[$2]}
 	xdg-open $1
 }
 
@@ -98,9 +100,10 @@ moveFromStagingFolder () {
 
 clearStagingFolder () {
 	#$1 rep index
-	cd /.$repositories[$1]/$stagingFolder
+	cd $HOME
+	cd ./${repositoryPaths[$1]}/.${repositories[$1]}/${stagingFolder}
 	for i in *; do
-		moveFromStagingFolder "$i" 
+		rm -r $i
 	done
 }
 
@@ -161,7 +164,7 @@ doAction () {
 		zip)
 			zipRep $(findRepoIndex $2) ;;
 		edit)
-			editFile $2 ;;
+			editFile $3 $(findRepoIndex $2) ;;
 		repos)
 			printRepos ;;
 		commits)
@@ -200,11 +203,11 @@ revertCommit () {
 makeCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit message
 	local timestamp=$(date +%s)
-	addCommitToLogFile $2 $1 $timestamp
 	cd $HOME
 	cd ./${repositoryPaths[$2]}/.${repositories[$2]}
-	mkdir $timestamp
 	if [ $(ls -1q ./${stagingFolder} | wc -l) -gt 0 ]; then
+		addCommitToLogFile $2 $1 $timestamp
+		mkdir $timestamp
 		mv ./${stagingFolder}/* ./$timestamp
 	else
 		echo "No files have been staged yet."
@@ -223,3 +226,7 @@ fi
 loadConfig
 doAction "$@"
 saveConfig
+if [ $1 != "list" ]; then
+	echo Files:
+	listFiles $(findRepoIndex $2)
+fi
