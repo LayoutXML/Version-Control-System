@@ -27,12 +27,11 @@ loadConfig () {
 saveConfig () {
 	cd $HOME
 	rm $configFile
-		touch $configFile 
-		for i in ${!repositories[@]}; do
-		# if [[ $repositories[$i] == $1 ]]; then
-			echo ${repositories[$i]} >> $configFile
-			echo ${repositoryPaths[$i]} >> $configFile
-		done
+	touch $configFile 
+	for i in ${!repositories[@]}; do
+		echo ${repositories[$i]} >> $configFile
+		echo ${repositoryPaths[$i]} >> $configFile
+	done
 }
 
 createRepository () {
@@ -56,11 +55,11 @@ addCommitToLogFile () {
 	#assumptions: $1 is a repository index, $2 is a commit message, $3 is timestamp, log file exists
 	cd $HOME
 	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
-	echo "${3} ${2}" >> ${logFile}
+	echo -e "${3}\t${2}" >> ${logFile}
 }
 
 listFiles () {
-  #assumptions: $1 is a repository index
+  	#assumptions: $1 is a repository index
 	cd $HOME
 	cd ./${repositoryPaths[$1]}
 	ls
@@ -72,11 +71,18 @@ zipRep () {
 	zip -r ./${repositoryPaths[$1]}/${repositories[$1]}.zip ./${repositoryPaths[$1]}
 }
 
+editFile () {
+	#assumptions: $1 is a filename, $2 repository index
+	cd $HOME
+	cd ./${repositoryPaths[$2]}
+	xdg-open $1
+}
+
 moveToStagingFolder () {
 	#assumptions: in the rep folder , $1 is a file name, $2 rep index
 	cd $HOME
 	cd ./${repositoryPaths[$2]}
-	cp ${1} ./.${repositories[$2]}/${stagingFolder}/${1}
+	cp -r ${1} ./.${repositories[$2]}/${stagingFolder}/
 	if [ $? -ne 0 ]; then
 		echo "Cannot move to the staging folder."
 	fi		
@@ -86,34 +92,34 @@ moveFromStagingFolder () {
 	#$1 filename, $2 rep index
 	cd $HOME
 	cd ./${repositoryPaths[$2]}/.${repositories[$2]}/${stagingFolder}
-	rm $1
+	rm -r $1
 	if [ $? -ne 0 ]; then
 		echo "Cannot move from the staging folder."
 	fi
-	cd ../..
 }
 
 clearStagingFolder () {
 	#$1 rep index
-	cd /.$repositories[$1]/$stagingFolder
-	for i in $(ls); do
-		moveFromStagingFolder $i 
+	cd $HOME
+	cd ./${repositoryPaths[$1]}/.${repositories[$1]}/${stagingFolder}
+	for i in *; do
+		rm -r $i
 	done
 }
 
 printRepos () {
 	for i in ${!repositories[@]}; do
 		echo -e "${repositories[$i]}\t${repositoryPaths[$i]}"
-  done
+  	done
 }
 
 printCommits () {
 	#$1 rep index
 	cd $HOME
 	cd ./${repositoryPaths[$1]}/.${repositories[$1]}/
-	for i in $(ls); do
-		if [ $i != $stagingFolder ] && [ $i != $logFile ]; then
-			echo $i
+	for i in *; do
+		if [ "$i" != $stagingFolder ] && [ "$i" != $logFile ]; then
+			echo "$i"
 		fi
 	done
 }
@@ -134,58 +140,43 @@ printMenu () {
 	echo "edit - opens the sublime text editor with the filename given"
 
 	echo "exit - exits Jet"
-	#echo "-------------------------------------------------------"
-
-	#PS3 = "Enter a command:"
-	
 }
 
 doAction () {
-		case $1 in
-			--help) 
-				printMenu ;;
-			create|make)
-				createRepository $3 $2
-				createLogFile $(findRepoIndex $2) ;;
-			list)
-				listFiles $(findRepoIndex $2) ;;
-			stage|add)
-				moveToStagingFolder $3 $(findRepoIndex $2) ;;
-			unstage|reset)
-				moveFromStagingFolder $3 $(findRepoIndex $2) ;;
-			stageclear|resetall)
-				clearStagingFolder $(findRepoIndex $2) ;;
-			commit)
-				makeCommit $3 $(findRepoIndex $2) ;;
-			revert)
-				revertCommit $3 $(findRepoIndex $2) ;;
-			zip)
-				zipRep $(findRepoIndex $2) ;;
-			edit)
-				editFile $2 ;;
-			repos)
-				printRepos ;;
-			commits)
-				printCommits $(findRepoIndex $2) ;;
-			*)
-				echo "Unknown command" ;;
-		esac
+	case $1 in
+		--help) 
+			printMenu ;;
+		create|make)
+			createRepository $3 $2
+			createLogFile $(findRepoIndex $2) ;;
+		list)
+			listFiles $(findRepoIndex $2) ;;
+		stage|add)
+			moveToStagingFolder $3 $(findRepoIndex $2) ;;
+		unstage|reset)
+			moveFromStagingFolder $3 $(findRepoIndex $2) ;;
+		stageclear|resetall)
+			clearStagingFolder $(findRepoIndex $2) ;;
+		commit)
+			makeCommit $3 $(findRepoIndex $2) ;;
+		revert)
+			revertCommit $3 $(findRepoIndex $2) ;;
+		zip)
+			zipRep $(findRepoIndex $2) ;;
+		edit)
+			editFile $3 $(findRepoIndex $2) ;;
+		repos)
+			printRepos ;;
+		commits)
+			printCommits $(findRepoIndex $2) ;;
+		*)
+			echo "Unknown command" ;;
+	esac
 }
-
-#findRepo () {
-#	echo "Enter the name of repository you'd like to find:"
-#	read repo
-#	if[ -d $repo ]
-#		echo "Repository $repo exists"
-#	else
-#		echo "Repository $repo wasn't found in the current directory"
-#	fi
-#}
 
 findRepoIndex () {
 	# shopt -s nocasematch
 	for i in ${!repositories[@]}; do
-		# if [[ $repositories[$i] == $1 ]]; then
 		if [ ${repositories[$i]} = $1 ]; then
 			echo $i
 		fi
@@ -204,26 +195,26 @@ revertCommit () {
 		fi
 	done
 	cd ./.${repositories[$2]}/$1
-	for i in $(ls); do
-		cp $i ../..
+	for i in *; do
+		cp -r "$i" ../..
 	done
-	cd ../..
 }
 
 makeCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit message
 	local timestamp=$(date +%s)
-	addCommitToLogFile $2 $1 $timestamp
 	cd $HOME
 	cd ./${repositoryPaths[$2]}/.${repositories[$2]}
-	mkdir $timestamp
 	if [ $(ls -1q ./${stagingFolder} | wc -l) -gt 0 ]; then
+		addCommitToLogFile $2 $1 $timestamp
+		mkdir $timestamp
 		mv ./${stagingFolder}/* ./$timestamp
 	else
 		echo "No files have been staged yet."
 	fi
 }
 
+# Validation
 if [ $# -eq 0 ]; then
 	echo "Invalid number of arguments"
 fi
@@ -232,11 +223,10 @@ fi
 #$2 - repository name (not case sensitive)
 #$3... - function arguments
 
-editFile () {
-	#assumptions: $1 is a filename located in /home/
-	xdg-open $1
-}
-
 loadConfig
 doAction "$@"
 saveConfig
+if [ $1 != "list" ]; then
+	echo Files:
+	listFiles $(findRepoIndex $2)
+fi
