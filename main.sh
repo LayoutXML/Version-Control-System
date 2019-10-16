@@ -79,14 +79,23 @@ editFile () {
 }
 
 moveToStagingFolder () {
-	#assumptions: in the rep folder , $1 is a file name, $2 rep index
+	#assumptions: $1 is a file name, $2 rep index
 	cd $HOME
 	cd ./${repositoryPaths[$2]}
 	cp -r ${1} ./.${repositories[$2]}/${stagingFolder}/
 	if [ $? -ne 0 ]; then
 		echo "Cannot move to the staging folder."
 	fi		
-}	
+}
+
+moveAllToStagingFolder () {
+	#assumptions: $1 rep index
+	cd $HOME
+	cd ./${repositoryPaths[$1]}
+	for i in *; do
+		cp -r "$i" "./.${repositories[$1]}/${stagingFolder}/"
+	done
+}
 
 moveFromStagingFolder () {
 	#$1 filename, $2 rep index
@@ -158,11 +167,21 @@ doAction () {
 		edit)
 			editFile $3 $(findRepoIndex $2) ;;
 		stage)
-			moveToStagingFolder $3 $(findRepoIndex $2) ;;
+			if [ "$3" = "-a" ]; then
+				moveAllToStagingFolder $(findRepoIndex $2)
+			else
+				moveToStagingFolder $3 $(findRepoIndex $2)
+			fi ;;
 		unstage)
-			moveFromStagingFolder $3 $(findRepoIndex $2) ;;
+			if [ "$3" = "-a" ]; then
+				clearStagingFolder $(findRepoIndex $2)
+			else
+				moveFromStagingFolder $3 $(findRepoIndex $2)
+			fi ;;
 		stageclear)
 			clearStagingFolder $(findRepoIndex $2) ;;
+		stageall)
+			moveAllToStagingFolder $(findRepoIndex $2) ;;
 		commit)
 			makeCommit $3 $(findRepoIndex $2) ;;
 		revert)
