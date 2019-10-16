@@ -101,6 +101,12 @@ clearStagingFolder () {
 	done
 }
 
+printRepos () {
+	for i in ${!repositories[@]}; do
+		echo -e "${repositories[$i]}\t${repositoryPaths[$i]}"
+  done
+}
+
 printCommits () {
 	#$1 rep index
 	cd $HOME
@@ -157,6 +163,8 @@ doAction () {
 				zipRep $(findRepoIndex $2) ;;
 			edit)
 				editFile $2 ;;
+			repos)
+				printRepos ;;
 			commits)
 				printCommits $(findRepoIndex $2) ;;
 			*)
