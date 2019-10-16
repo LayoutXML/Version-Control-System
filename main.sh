@@ -48,6 +48,7 @@ createLogFile () {
 	#assumptions: $1 is a repository index
 	cd $HOME
 	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
+	echo $1 ${repositoryPaths[$1]} ${repositories[$1]}
 	touch ${logFile}
 }
 
@@ -125,6 +126,22 @@ printCommits () {
 }
 
 test () {
+	local repoName="testRepo"
+	local repoPath="./repository"
+	mkdir $repoPath
+	createRepository "repository" $repoName
+	sleep 5s
+	local repoIndex=$(findRepoIndex $repoName)
+	createLogFile $repoIndex
+	printRepos
+	listFiles $repoIndex
+	#moveToStagingFolder
+	#moveFromStagingFolder
+	#clearStagingFolder
+	#makeCommit
+	#revertCommit
+	#printCommits
+	#zipRep
 }
 
 printMenu () {
