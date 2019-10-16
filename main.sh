@@ -104,6 +104,17 @@ clearStagingFolder () {
 printRepos () {
 	for i in ${!repositories[@]}; do
 		echo -e "${repositories[$i]}\t${repositoryPaths[$i]}"
+  done
+}
+
+printCommits () {
+	#$1 rep index
+	cd $HOME
+	cd ./${repositoryPaths[$1]}/.${repositories[$1]}/
+	for i in $(ls); do
+		if [ $i != $stagingFolder ] && [ $i != $logFile ]; then
+			echo $i
+		fi
 	done
 }
 
@@ -119,6 +130,7 @@ printMenu () {
 	echo "stage - moves file to staging folder"
 	echo "unstage - moves a file from the staging folder"
 	echo "stageclear - clears out the staging folder"
+	echo "commits - prints a list of existing commits"
 	echo "edit - opens the sublime text editor with the filename given"
 
 	echo "exit - exits Jet"
@@ -153,6 +165,8 @@ doAction () {
 				editFile $2 ;;
 			repos)
 				printRepos ;;
+			commits)
+				printCommits $(findRepoIndex $2) ;;
 			*)
 				echo "Unknown command" ;;
 		esac
@@ -184,15 +198,16 @@ revertCommit () {
 	addCommitToLogFile $2 "Reverted commit $1" $timestamp
 	cd $HOME
 	cd ./${repositoryPaths[$2]}
-	for i in $(ls); do
-		rm $i
+	for i in *; do
+		if [ "$i" != .$repositories[$2] ]; then
+			rm -r "$i"
+		fi
 	done
 	cd ./.${repositories[$2]}/$1
 	for i in $(ls); do
-		mv $i ../..
+		cp $i ../..
 	done
 	cd ../..
-	rm -r ./.${repositories[$2]}/$1
 }
 
 makeCommit () {
@@ -202,7 +217,11 @@ makeCommit () {
 	cd $HOME
 	cd ./${repositoryPaths[$2]}/.${repositories[$2]}
 	mkdir $timestamp
-	mv ./${stagingFolder}/* ./$timestamp
+	if [ $(ls -1q ./${stagingFolder} | wc -l) -gt 0 ]; then
+		mv ./${stagingFolder}/* ./$timestamp
+	else
+		echo "No files have been staged yet."
+	fi
 }
 
 if [ $# -eq 0 ]; then
