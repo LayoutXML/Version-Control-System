@@ -52,10 +52,10 @@ createLogFile () {
 }
 
 addCommitToLogFile () {
-	#assumptions: $1 is a repository index, $2 is a commit message, $3 is timestamp, log file exists
+	#assumptions: $1 is a repository index, $2 is a commit message, $3 is date, $4 is commit timestamp (optional), log file exists
 	cd $HOME
 	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
-	echo -e "${3}\t${2}" >> ${logFile}
+	echo -e "${3}\t${2}\t${4}" >> ${logFile}
 }
 
 listFiles () {
@@ -189,8 +189,8 @@ findRepoIndex () {
 
 revertCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit timestamp
-	local timestamp=$(date +%s)
-	addCommitToLogFile $2 "Reverted commit $1" $timestamp
+	local date=$(date +'%Y-%m-%d %H:%M:%S')
+	addCommitToLogFile $2 "Reverted commit $1" "$date"
 	cd $HOME
 	cd ./${repositoryPaths[$2]}
 	for i in *; do
@@ -206,11 +206,12 @@ revertCommit () {
 
 makeCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit message
+	local date=$(date +'%Y-%m-%d %H:%M:%S')
 	local timestamp=$(date +%s)
 	cd $HOME
 	cd ./${repositoryPaths[$2]}/.${repositories[$2]}
 	if [ $(ls -1q ./${stagingFolder} | wc -l) -gt 0 ]; then
-		addCommitToLogFile $2 $1 $timestamp
+		addCommitToLogFile $2 $1 "$date" $timestamp
 		mkdir $timestamp
 		mv ./${stagingFolder}/* ./$timestamp
 	else
