@@ -124,53 +124,57 @@ printCommits () {
 	done
 }
 
-printMenu () {
-	echo "Jet Version Control"
-	echo "--help - prints this menu"
-	echo "create - creates a new repository"
-	echo "access [x]- change your current working directory to x"
-	echo "list - lists all files in the current working directory"
-	echo "loadconfig - loads configuration file"
-	echo "saveconfig - saves configuration file"
-	echo "log - creates a new log file"
-	echo "stage - moves file to staging folder"
-	echo "unstage - moves a file from the staging folder"
-	echo "stageclear - clears out the staging folder"
-	echo "commits - prints a list of existing commits"
-	echo "edit - opens the sublime text editor with the filename given"
+test () {
+}
 
-	echo "exit - exits Jet"
+printMenu () {
+	echo -e "Jet Version Control"
+	echo -e "--help\t\tprints this menu"
+	echo -e "make\t\tcreates a new repository"
+	echo -e "repos\t\tprint all repositories"
+	echo -e "list\t\tlists all files in the current working directory"
+	echo -e "edit\t\tedit a file in an external editor"
+	echo -e "stage\t\tmoves file to staging folder"
+	echo -e "unstaget\tmoves a file from the staging folder"
+	echo -e "stageclear\tclears out the staging folder"
+	echo -e "commit\t\tmake a commit"
+	echo -e "revert\trevert a commit"
+	echo -e "commits\t\tprints a list of existing commits"
+	echo -e "zip\t\zip a repository"
+	echo -e "exit\t\texits Jet"
 }
 
 doAction () {
 	case $1 in
 		--help) 
 			printMenu ;;
-		create|make)
+		make)
 			createRepository $3 $2
 			createLogFile $(findRepoIndex $2) ;;
+		repos)
+			printRepos ;;
 		list)
 			listFiles $(findRepoIndex $2) ;;
-		stage|add)
+		edit)
+			editFile $3 $(findRepoIndex $2) ;;
+		stage)
 			moveToStagingFolder $3 $(findRepoIndex $2) ;;
-		unstage|reset)
+		unstage)
 			moveFromStagingFolder $3 $(findRepoIndex $2) ;;
-		stageclear|resetall)
+		stageclear)
 			clearStagingFolder $(findRepoIndex $2) ;;
 		commit)
 			makeCommit $3 $(findRepoIndex $2) ;;
 		revert)
 			revertCommit $3 $(findRepoIndex $2) ;;
-		zip)
-			zipRep $(findRepoIndex $2) ;;
-		edit)
-			editFile $3 $(findRepoIndex $2) ;;
-		repos)
-			printRepos ;;
 		commits)
 			printCommits $(findRepoIndex $2) ;;
+		zip)
+			zipRep $(findRepoIndex $2) ;;
+		test)
+			test ;;
 		*)
-			echo "Unknown command" ;;
+			echo "Error, unknown command" ;;
 	esac
 }
 
@@ -226,7 +230,7 @@ fi
 loadConfig
 doAction "$@"
 saveConfig
-if [ $1 != "list" ]; then
+if ! [ -z $2 ] && [ $1 != "list" ]; then
 	echo Files:
 	listFiles $(findRepoIndex $2)
 fi
