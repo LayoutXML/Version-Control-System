@@ -4,7 +4,7 @@ configFile="jet.cfg"
 logFile="log.txt"
 stagingFolder="staging"
 #repositories - array of repository names, initialised during config reading
-#repositoryPaths - array of repostiroy paths from home folder, initialised during config reading
+#repositoryPaths - array of repository paths from home folder, initialised during config reading
 
 loadConfig () {
 	cd $HOME
@@ -36,12 +36,16 @@ saveConfig () {
 
 createRepository () {
 	#assumptions: $1 is a path to the repository, $2 is a repository name
-	cd $HOME
-	cd $1
-	mkdir .${2}
-	mkdir .${2}/${stagingFolder}
-	repositories[${#repositories[@]}]=$2
-	repositoryPaths[${#repositoryPaths[@]}]=$1
+	if [ -d ${repositoryPaths[$1]} ]; then
+		cd $HOME
+		cd $1
+		mkdir .${2}
+		mkdir .${2}/${stagingFolder}
+		repositories[${#repositories[@]}]=$2
+		repositoryPaths[${#repositoryPaths[@]}]=$1
+	else
+		echo "The path to the new Repository is invalid"
+	fi
 }
 
 createLogFile () {
@@ -53,58 +57,87 @@ createLogFile () {
 
 addCommitToLogFile () {
 	#assumptions: $1 is a repository index, $2 is a commit message, $3 is timestamp, log file exists
-	cd $HOME
 	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
 	echo -e "${3}\t${2}" >> ${logFile}
 }
 
 listFiles () {
   	#assumptions: $1 is a repository index
-	cd $HOME
-	cd ./${repositoryPaths[$1]}
-	ls
+  	if [ -d ${repositoryPaths[$1]} ]; then
+		cd $HOME
+		cd ./${repositoryPaths[$1]}
+		ls
+	else
+		echo "The repository you're trying to list files from doesn't exist"
+	fi
 }
 
 zipRep () {
 	#assumptions: $1 is a repository index
-	cd $HOME
-	zip -r ./${repositoryPaths[$1]}/${repositories[$1]}.zip ./${repositoryPaths[$1]}
+	if [ -d ${repositoryPaths[$1]} ]; then
+		cd $HOME
+		zip -r ./${repositoryPaths[$1]}/${repositories[$1]}.zip ./${repositoryPaths[$1]}
+	else
+		echo "The repository you're trying to compress doesn't exist"
+	fi
 }
 
 editFile () {
 	#assumptions: $1 is a filename, $2 repository index
-	cd $HOME
-	cd ./${repositoryPaths[$2]}
-	xdg-open $1
+	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
+		cd $HOME
+		cd ./${repositoryPaths[$2]}
+		xdg-open $1
+	elif ! [ -f $1 ]
+		echo "The file you're trying to open doesn't exist"
+	else
+		echo "The repository you're trying to access a file from doesn't exist"
+	fi
 }
 
 moveToStagingFolder () {
 	#assumptions: in the rep folder , $1 is a file name, $2 rep index
-	cd $HOME
-	cd ./${repositoryPaths[$2]}
-	cp -r ${1} ./.${repositories[$2]}/${stagingFolder}/
-	if [ $? -ne 0 ]; then
-		echo "Cannot move to the staging folder."
-	fi		
+	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
+		cd $HOME
+		cd ./${repositoryPaths[$2]}
+		cp -r ${1} ./.${repositories[$2]}/${stagingFolder}/
+		if [ $? -ne 0 ]; then
+			echo "Cannot move to the staging folder."
+		fi	
+	elif ! [ -f $1 ]
+		echo "The file you're trying to stage doesn't exist"
+	else
+		echo "The repository you're trying to stage a file from doesn't exist"
+	fi
 }	
 
 moveFromStagingFolder () {
 	#$1 filename, $2 rep index
-	cd $HOME
-	cd ./${repositoryPaths[$2]}/.${repositories[$2]}/${stagingFolder}
-	rm -r $1
-	if [ $? -ne 0 ]; then
-		echo "Cannot move from the staging folder."
+	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
+		cd $HOME
+		cd ./${repositoryPaths[$2]}/.${repositories[$2]}/${stagingFolder}
+		rm -r $1
+		if [ $? -ne 0 ]; then
+			echo "Cannot move from the staging folder."
+		fi
+	elif ! [ -f $1 ]
+		echo "The file you're trying to remove from the staging area doesn't exist"
+	else
+		echo "The repository you're trying move a file to doesn't exist"
 	fi
 }
 
 clearStagingFolder () {
 	#$1 rep index
-	cd $HOME
-	cd ./${repositoryPaths[$1]}/.${repositories[$1]}/${stagingFolder}
-	for i in *; do
-		rm -r $i
-	done
+	if [ -d ${repositoryPaths[$1]} ]; then
+		cd $HOME
+		cd ./${repositoryPaths[$1]}/.${repositories[$1]}/${stagingFolder}
+		for i in *; do
+			rm -r $i
+		done
+	else
+		echo "The staging area you're trying to clear doesn't exist"
+	fi
 }
 
 printRepos () {
@@ -115,13 +148,17 @@ printRepos () {
 
 printCommits () {
 	#$1 rep index
-	cd $HOME
-	cd ./${repositoryPaths[$1]}/.${repositories[$1]}/
-	for i in *; do
-		if [ "$i" != $stagingFolder ] && [ "$i" != $logFile ]; then
-			echo "$i"
-		fi
-	done
+	if [ -d $1 ]; then
+		cd $HOME
+		cd ./${repositoryPaths[$1]}/.${repositories[$1]}/
+		for i in *; do
+			if [ "$i" != $stagingFolder ] && [ "$i" != $logFile ]; then
+				echo "$i"
+			fi
+		done
+	else
+		echo "The repository you're trying to print commits from doesn't exist"
+	fi
 }
 
 printMenu () {
@@ -185,43 +222,55 @@ findRepoIndex () {
 
 revertCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit timestamp
-	local timestamp=$(date +%s)
-	addCommitToLogFile $2 "Reverted commit $1" $timestamp
-	cd $HOME
-	cd ./${repositoryPaths[$2]}
-	for i in *; do
-		if [ "$i" != .$repositories[$2] ]; then
-			rm -r "$i"
-		fi
-	done
-	cd ./.${repositories[$2]}/$1
-	for i in *; do
-		cp -r "$i" ../..
-	done
+	if [ -d ${repositoryPaths[$2]} ]; then
+		local timestamp=$(date +%s)
+		addCommitToLogFile $2 "Reverted commit $1" $timestamp
+		cd $HOME
+		cd ./${repositoryPaths[$2]}
+		for i in *; do
+			if [ "$i" != .$repositories[$2] ]; then
+				rm -r "$i"
+			fi
+		done
+		cd ./.${repositories[$2]}/$1
+		for i in *; do
+			cp -r "$i" ../..
+		done
+	else
+		echo "The commit you're trying to revert hasn't been made"
+	fi
 }
 
 makeCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit message
-	local timestamp=$(date +%s)
-	cd $HOME
-	cd ./${repositoryPaths[$2]}/.${repositories[$2]}
-	if [ $(ls -1q ./${stagingFolder} | wc -l) -gt 0 ]; then
-		addCommitToLogFile $2 $1 $timestamp
-		mkdir $timestamp
-		mv ./${stagingFolder}/* ./$timestamp
+	#--------------if [ repo doesnt exist ] then print error, if [ no commit message given ] then print error, else print code below
+	if [ -d ${repositoryPaths[$2]} ] && [ -n $1 ]; then
+		cd $HOME
+		local timestamp=$(date +%s)
+		cd $HOME
+		cd ./${repositoryPaths[$2]}/.${repositories[$2]}
+		if [ $(ls -1q ./${stagingFolder} | wc -l) -gt 0 ]; then
+			addCommitToLogFile $2 $1 $timestamp
+			mkdir $timestamp
+			mv ./${stagingFolder}/* ./$timestamp
+		else
+			echo "No files have been staged yet."
+		fi
+	elif [ -d $2 ]
+		echo "The repository you're trying to commit doesn't exist."
 	else
-		echo "No files have been staged yet."
-	fi
+		echo "No commit message was given."
 }
 
-# Validation
+# Validation for general 
 if [ $# -eq 0 ]; then
-	echo "Invalid number of arguments"
+	echo "No arguments were given."
 fi
 
 #$1 - command name
 #$2 - repository name (not case sensitive)
 #$3... - function arguments
+
 
 loadConfig
 doAction "$@"
