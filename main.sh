@@ -208,7 +208,11 @@ makeCommit () {
 	cd $HOME
 	cd ./${repositoryPaths[$2]}/.${repositories[$2]}
 	mkdir $timestamp
-	mv ./${stagingFolder}/* ./$timestamp
+	if [ $(ls -1q ./${stagingFolder} | wc -l) -gt 0 ]; then
+		mv ./${stagingFolder}/* ./$timestamp
+	else
+		echo "No files have been staged yet."
+	fi
 }
 
 if [ $# -eq 0 ]; then
