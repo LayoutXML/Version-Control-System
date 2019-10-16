@@ -101,6 +101,17 @@ clearStagingFolder () {
 	done
 }
 
+printCommits () {
+	#$1 rep index
+	cd $HOME
+	cd ./${repositoryPaths[$1]}/.${repositories[$1]}/
+	for i in $(ls); do
+		if [ $i != $stagingFolder ] && [ $i != $logFile ]; then
+			echo $i
+		fi
+	done
+}
+
 printMenu () {
 	echo "Jet Version Control"
 	echo "--help - prints this menu"
@@ -113,6 +124,7 @@ printMenu () {
 	echo "stage - moves file to staging folder"
 	echo "unstage - moves a file from the staging folder"
 	echo "stageclear - clears out the staging folder"
+	echo "commits - prints a list of existing commits"
 	echo "edit - opens the sublime text editor with the filename given"
 
 	echo "exit - exits Jet"
@@ -145,6 +157,8 @@ doAction () {
 				zipRep $(findRepoIndex $2) ;;
 			edit)
 				editFile $2 ;;
+			commits)
+				printCommits $(findRepoIndex $2) ;;
 			*)
 				echo "Unknown command" ;;
 		esac
