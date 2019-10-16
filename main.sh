@@ -101,6 +101,12 @@ clearStagingFolder () {
 	done
 }
 
+printRepos () {
+	for i in ${!repositories[@]}; do
+		echo -e "${repositories[$i]}\t${repositoryPaths[$i]}"
+	done
+}
+
 printMenu () {
 	echo "Jet Version Control"
 	echo "--help - prints this menu"
@@ -145,6 +151,8 @@ doAction () {
 				zipRep $(findRepoIndex $2) ;;
 			edit)
 				editFile $2 ;;
+			repos)
+				printRepos ;;
 			*)
 				echo "Unknown command" ;;
 		esac
