@@ -34,15 +34,30 @@ saveConfig () {
 
 createRepository () {
 	#assumptions: $1 is a path to the repository, $2 is a repository name
-	if [ -d ${repositoryPaths[$1]} ]; then
-		cd $HOME
+	cd $HOME
+	if [ -d ${1} ]; then
 		cd $1
 		mkdir .${2}
-		mkdir .${2}/${stagingFolder}
-		repositories[${#repositories[@]}]=$2
-		repositoryPaths[${#repositoryPaths[@]}]=$1
 	else
-		echo "The path to the new Repository is invalid"
+		echo "The path to the new Repository is invalid. Creating new pathway..."
+		mkdir -p $1/.$2
+		cd $1
+	fi
+	mkdir .${2}/${stagingFolder}
+	repositories[${#repositories[@]}]=$2
+	repositoryPaths[${#repositoryPaths[@]}]=$1
+}
+
+deleteRepository () {
+	#assumptions: $1 is a repository name, $2 is a repository index
+	if [ -d ${repositoryPaths[$2]} ]; then
+		cd $HOME
+		cd $2
+		rm -r ${repositoryPaths[$2]}
+		unset 'repositories[$1]'
+		unset 'repositoryPaths[$2]'
+	else
+		echo "The repository you're trying to delete doesn't exist"
 	fi
 }
 
@@ -177,6 +192,7 @@ printMenu () {
 	echo -e "Jet Version Control"
 	echo -e "--help\t\tprints this menu"
 	echo -e "make\t\tcreates a new repository"
+	echo -e "delete\t\tdeletes a repository"
 	echo -e "repos\t\tprint all repositories"
 	echo -e "list\t\tlists all files in the current working directory"
 	echo -e "edit\t\tedit a file in an external editor"
@@ -197,6 +213,8 @@ doAction () {
 		make)
 			createRepository $3 $2
 			createLogFile $(findRepoIndex $2) ;;
+		delete)
+			deleteRepository $2 $(findRepoIndex $3) ;;
 		repos)
 			printRepos ;;
 		list)
