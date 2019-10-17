@@ -9,8 +9,6 @@ stagingFolder="staging"
 loadConfig () {
 	cd $HOME
 	if [ -f "$configFile" ]; then
-		#repositoryName
-		#repositoryPath (relative path, from $HOME)
 		odd=true
 		while read line; do
 			if [ $odd = true ]; then
@@ -59,7 +57,7 @@ addCommitToLogFile () {
 	#assumptions: $1 is a repository index, $2 is a commit message, $3 is date, $4 is commit timestamp (optional), log file exists
 	cd $HOME
 	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
-	echo -e "${3}\t${2}\t${4}" >> ${logFile}
+	echo -e "${3}\t${2}\t$(whoami)\t${4}" >> ${logFile}
 }
 
 listFiles () {
@@ -89,7 +87,7 @@ editFile () {
 		cd $HOME
 		cd ./${repositoryPaths[$2]}
 		xdg-open $1
-	elif ! [ -f $1 ]
+	elif ! [ -f $1 ]; then
 		echo "The file you're trying to open doesn't exist"
 	else
 		echo "The repository you're trying to access a file from doesn't exist"
@@ -105,7 +103,7 @@ moveToStagingFolder () {
 		if [ $? -ne 0 ]; then
 			echo "Cannot move to the staging folder."
 		fi	
-	elif ! [ -f $1 ]
+	elif ! [ -f $1 ]; then
 		echo "The file you're trying to stage doesn't exist"
 	else
 		echo "The repository you're trying to stage a file from doesn't exist"
@@ -117,7 +115,9 @@ moveAllToStagingFolder () {
 	cd $HOME
 	cd ./${repositoryPaths[$1]}
 	for i in *; do
-		cp -r "$i" "./.${repositories[$1]}/${stagingFolder}/"
+		if [ "$i" != "*" ]; then
+			cp -r "$i" "./.${repositories[$1]}/${stagingFolder}/"
+		fi
 	done
 }
 
@@ -130,7 +130,7 @@ moveFromStagingFolder () {
 		if [ $? -ne 0 ]; then
 			echo "Cannot move from the staging folder."
 		fi
-	elif ! [ -f $1 ]
+	elif ! [ -f $1 ]; then
 		echo "The file you're trying to remove from the staging area doesn't exist"
 	else
 		echo "The repository you're trying move a file to doesn't exist"
@@ -143,7 +143,9 @@ clearStagingFolder () {
 		cd $HOME
 		cd ./${repositoryPaths[$1]}/.${repositories[$1]}/${stagingFolder}
 		for i in *; do
-			rm -r $i
+			if [ "$i" != "*" ]; then
+				rm -r "$i"
+			fi
 		done
 	else
 		echo "The staging area you're trying to clear doesn't exist"
@@ -162,16 +164,13 @@ printCommits () {
 		cd $HOME
 		cd ./${repositoryPaths[$1]}/.${repositories[$1]}/
 		for i in *; do
-			if [ "$i" != $stagingFolder ] && [ "$i" != $logFile ]; then
+			if [ "$i" != $stagingFolder ] && [ "$i" != $logFile ] && [ "$i" != "*" ]; then
 				echo "$i"
 			fi
 		done
 	else
 		echo "The repository you're trying to print commits from doesn't exist"
 	fi
-}
-
-test () {
 }
 
 printMenu () {
@@ -238,7 +237,7 @@ doAction () {
 findRepoIndex () {
 	# shopt -s nocasematch
 	for i in ${!repositories[@]}; do
-		if [ ${repositories[$i]} = $1 ]; then
+		if [ "${repositories[$i]}" = "$1" ]; then
 			echo $i
 		fi
 	done
@@ -252,13 +251,15 @@ revertCommit () {
 		cd $HOME
 		cd ./${repositoryPaths[$2]}
 		for i in *; do
-			if [ "$i" != .$repositories[$2] ]; then
+			if [ "$i" != .$repositories[$2] ] && [ "$i" != "*" ]; then
 				rm -r "$i"
 			fi
 		done
 		cd ./.${repositories[$2]}/$1
 		for i in *; do
-			cp -r "$i" ../..
+			if [ "$i" != "*" ]; then
+				cp -r "$i" ../..
+			fi
 		done
 	else
 		echo "The commit you're trying to revert hasn't been made"
@@ -280,7 +281,7 @@ makeCommit () {
 		else
 			echo "No files have been staged yet."
 		fi
-	elif [ -d $2 ]
+	elif [ -d $2 ]; then
 		echo "The repository you're trying to commit doesn't exist."
 	else
 		echo "No commit message was given."
@@ -288,7 +289,7 @@ makeCommit () {
 }
 
 # Validation for general 
-if [ $# -lt 2 ]; then
+if [ $# -eq 0 ]; then
 	echo "No arguments were given."
 fi
 
