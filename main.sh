@@ -56,10 +56,10 @@ createLogFile () {
 }
 
 addCommitToLogFile () {
-	#assumptions: $1 is a repository index, $2 is a commit message, $3 is timestamp, log file exists
+	#assumptions: $1 is a repository index, $2 is a commit message, $3 is date, $4 is commit timestamp (optional), log file exists
 	cd $HOME
 	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
-	echo -e "${3}\t${2}" >> ${logFile}
+	echo -e "${3}\t${2}\t${4}" >> ${logFile}
 }
 
 listFiles () {
@@ -112,6 +112,15 @@ moveToStagingFolder () {
 	fi
 }	
 
+moveAllToStagingFolder () {
+	#assumptions: $1 rep index
+	cd $HOME
+	cd ./${repositoryPaths[$1]}
+	for i in *; do
+		cp -r "$i" "./.${repositories[$1]}/${stagingFolder}/"
+	done
+}
+
 moveFromStagingFolder () {
 	#$1 filename, $2 rep index
 	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
@@ -162,53 +171,67 @@ printCommits () {
 	fi
 }
 
-printMenu () {
-	echo "Jet Version Control"
-	echo "--help - prints this menu"
-	echo "create - creates a new repository"
-	echo "access [x]- change your current working directory to x"
-	echo "list - lists all files in the current working directory"
-	echo "loadconfig - loads configuration file"
-	echo "saveconfig - saves configuration file"
-	echo "log - creates a new log file"
-	echo "stage - moves file to staging folder"
-	echo "unstage - moves a file from the staging folder"
-	echo "stageclear - clears out the staging folder"
-	echo "commits - prints a list of existing commits"
-	echo "edit - opens the sublime text editor with the filename given"
+test () {
+}
 
-	echo "exit - exits Jet"
+printMenu () {
+	echo -e "Jet Version Control"
+	echo -e "--help\t\tprints this menu"
+	echo -e "make\t\tcreates a new repository"
+	echo -e "repos\t\tprint all repositories"
+	echo -e "list\t\tlists all files in the current working directory"
+	echo -e "edit\t\tedit a file in an external editor"
+	echo -e "stage\t\tmoves file to staging folder"
+	echo -e "unstaget\tmoves a file from the staging folder"
+	echo -e "stageclear\tclears out the staging folder"
+	echo -e "commit\t\tmake a commit"
+	echo -e "revert\trevert a commit"
+	echo -e "commits\t\tprints a list of existing commits"
+	echo -e "zip\t\zip a repository"
+	echo -e "exit\t\texits Jet"
 }
 
 doAction () {
 	case $1 in
 		--help) 
 			printMenu ;;
-		create|make)
+		make)
 			createRepository $3 $2
 			createLogFile $(findRepoIndex $2) ;;
+		repos)
+			printRepos ;;
 		list)
 			listFiles $(findRepoIndex $2) ;;
-		stage|add)
-			moveToStagingFolder $3 $(findRepoIndex $2) ;;
-		unstage|reset)
-			moveFromStagingFolder $3 $(findRepoIndex $2) ;;
-		stageclear|resetall)
+		edit)
+			editFile $3 $(findRepoIndex $2) ;;
+		stage)
+			if [ "$3" = "-a" ]; then
+				moveAllToStagingFolder $(findRepoIndex $2)
+			else
+				moveToStagingFolder $3 $(findRepoIndex $2)
+			fi ;;
+		unstage)
+			if [ "$3" = "-a" ]; then
+				clearStagingFolder $(findRepoIndex $2)
+			else
+				moveFromStagingFolder $3 $(findRepoIndex $2)
+			fi ;;
+		stageclear)
 			clearStagingFolder $(findRepoIndex $2) ;;
+		stageall)
+			moveAllToStagingFolder $(findRepoIndex $2) ;;
 		commit)
 			makeCommit $3 $(findRepoIndex $2) ;;
 		revert)
 			revertCommit $3 $(findRepoIndex $2) ;;
-		zip)
-			zipRep $(findRepoIndex $2) ;;
-		edit)
-			editFile $3 $(findRepoIndex $2) ;;
-		repos)
-			printRepos ;;
 		commits)
 			printCommits $(findRepoIndex $2) ;;
+		zip)
+			zipRep $(findRepoIndex $2) ;;
+		test)
+			test ;;
 		*)
-			echo "Unknown command" ;;
+			echo "Error, unknown command" ;;
 	esac
 }
 
@@ -224,7 +247,7 @@ findRepoIndex () {
 revertCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit timestamp
 	if [ -d ${repositoryPaths[$2]} ]; then
-		local timestamp=$(date +%s)
+	  local date=$(date +'%Y-%m-%d %H:%M:%S')
 		addCommitToLogFile $2 "Reverted commit $1" $timestamp
 		cd $HOME
 		cd ./${repositoryPaths[$2]}
@@ -246,11 +269,12 @@ makeCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit message
 	#--------------if [ repo doesnt exist ] then print error, if [ no commit message given ] then print error, else print code below
 	if [ -d ${repositoryPaths[$2]} ] && [ -n $1 ]; then
+	  local date=$(date +'%Y-%m-%d %H:%M:%S')
 		local timestamp=$(date +%s)
 		cd $HOME
 		cd ./${repositoryPaths[$2]}/.${repositories[$2]}
 		if [ $(ls -1q ./${stagingFolder} | wc -l) -gt 0 ]; then
-			addCommitToLogFile $2 $1 $timestamp
+	  	addCommitToLogFile $2 $1 "$date" $timestamp
 			mkdir $timestamp
 			mv ./${stagingFolder}/* ./$timestamp
 		else
@@ -260,6 +284,7 @@ makeCommit () {
 		echo "The repository you're trying to commit doesn't exist."
 	else
 		echo "No commit message was given."
+  fi
 }
 
 # Validation for general 
@@ -275,7 +300,7 @@ fi
 loadConfig
 doAction "$@"
 saveConfig
-if [ $1 != "list" ]; then
+if ! [ -z $2 ] && [ $1 != "list" ]; then
 	echo Files:
 	listFiles $(findRepoIndex $2)
 fi
