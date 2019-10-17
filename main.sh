@@ -89,7 +89,7 @@ editFile () {
 		cd $HOME
 		cd ./${repositoryPaths[$2]}
 		xdg-open $1
-	elif ! [ -f $1 ]
+	elif ! [ -f $1 ]; then
 		echo "The file you're trying to open doesn't exist"
 	else
 		echo "The repository you're trying to access a file from doesn't exist"
@@ -101,11 +101,11 @@ moveToStagingFolder () {
 	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
 		cd $HOME
 		cd ./${repositoryPaths[$2]}
-		cp -r ${1} ./.${repositories[$2]}/${stagingFolder}/
+		cp -r ${1} ./.${repositories[$2]}/${stagingFolder}
 		if [ $? -ne 0 ]; then
 			echo "Cannot move to the staging folder."
 		fi	
-	elif ! [ -f $1 ]
+	elif ! [ -f $1 ]; then
 		echo "The file you're trying to stage doesn't exist"
 	else
 		echo "The repository you're trying to stage a file from doesn't exist"
@@ -130,7 +130,7 @@ moveFromStagingFolder () {
 		if [ $? -ne 0 ]; then
 			echo "Cannot move from the staging folder."
 		fi
-	elif ! [ -f $1 ]
+	elif ! [ -f $1 ]; then
 		echo "The file you're trying to remove from the staging area doesn't exist"
 	else
 		echo "The repository you're trying move a file to doesn't exist"
@@ -171,9 +171,6 @@ printCommits () {
 	fi
 }
 
-test () {
-}
-
 printMenu () {
 	echo -e "Jet Version Control"
 	echo -e "--help\t\tprints this menu"
@@ -208,6 +205,7 @@ doAction () {
 			if [ "$3" = "-a" ]; then
 				moveAllToStagingFolder $(findRepoIndex $2)
 			else
+				pwd
 				moveToStagingFolder $3 $(findRepoIndex $2)
 			fi ;;
 		unstage)
@@ -280,7 +278,7 @@ makeCommit () {
 		else
 			echo "No files have been staged yet."
 		fi
-	elif [ -d $2 ]
+	elif [ -d $2 ]; then
 		echo "The repository you're trying to commit doesn't exist."
 	else
 		echo "No commit message was given."
