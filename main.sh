@@ -42,7 +42,8 @@ createRepository () {
 		mkdir .${2}
 	else
 		echo "The path to the new Repository is invalid. Creating new pathway..."
-		mkdir -p ${repositoryPaths[$1]}/$2
+		mkdir -p $1/.$2
+		cd $1
 	fi
 	mkdir .${2}/${stagingFolder}
 	repositories[${#repositories[@]}]=$2
@@ -190,6 +191,7 @@ printMenu () {
 	echo -e "Jet Version Control"
 	echo -e "--help\t\tprints this menu"
 	echo -e "make\t\tcreates a new repository"
+	echo -e "delete\t\tdeletes a repository"
 	echo -e "repos\t\tprint all repositories"
 	echo -e "list\t\tlists all files in the current working directory"
 	echo -e "edit\t\tedit a file in an external editor"
@@ -210,6 +212,8 @@ doAction () {
 		make)
 			createRepository $3 $2
 			createLogFile $(findRepoIndex $2) ;;
+		delete)
+			deleteRepository $(findRepoIndex $3) $2 ;;
 		repos)
 			printRepos ;;
 		list)
