@@ -56,6 +56,8 @@ deleteRepository () {
 		cd $HOME
 		cd $2
 		rm -r ${repositoryPaths[$2]}
+		unset 'repositories[$1]'
+		unset 'repositoryPaths[$2]'
 	else
 		echo "The repository you're trying to delete doesn't exist"
 	fi
