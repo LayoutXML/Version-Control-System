@@ -34,13 +34,15 @@ saveConfig () {
 
 createRepository () {
 	#assumptions: $1 is a path to the repository, $2 is a repository name
-	if [ -d ${repositoryPaths[$1]} ]; then
+	if [ -d "$1" ]; then
 		cd $HOME
-		cd $1
+		cd "$1"
 		mkdir .${2}
 		mkdir .${2}/${stagingFolder}
-		repositories[${#repositories[@]}]=$2
-		repositoryPaths[${#repositoryPaths[@]}]=$1
+		# repositories[${#repositories[@]}]="$2"
+		# repositoryPaths[${#repositoryPaths[@]}]="$1"
+		repositories+="$2"
+		repositoryPaths+="$1"
 	else
 		echo "The path to the new Repository is invalid"
 	fi
@@ -49,8 +51,26 @@ createRepository () {
 createLogFile () {
 	#assumptions: $1 is a repository index
 	cd $HOME
-	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
+	cd "./${repositoryPaths[$1]}/.${repositories[$1]}"
 	touch ${logFile}
+}
+
+createNewFile () {
+	#assumptions: $1 is a filename, $2 repository index
+	cd $HOME
+	cd "./${repositoryPaths[$2]}"
+	if [[ "$1" == *"/"* ]]; then
+		mkdir -p "${1%/*}" && touch "$1"
+	else 
+		touch "$1"
+	fi
+}
+
+deleteFile () {
+	#assumptions: $1 is a filename, $2 repository index
+	cd $HOME
+	cd "./${repositoryPaths[$2]}"
+	rm -r "$1"
 }
 
 addCommitToLogFile () {
@@ -62,9 +82,9 @@ addCommitToLogFile () {
 
 listFiles () {
   	#assumptions: $1 is a repository index
-  	if [ -d ${repositoryPaths[$1]} ]; then
+  	if [ -d "${repositoryPaths[$1]}" ]; then
 		cd $HOME
-		cd ./${repositoryPaths[$1]}
+		cd "./${repositoryPaths[$1]}"
 		ls
 	else
 		echo "The repository you're trying to list files from doesn't exist"
@@ -193,44 +213,48 @@ printMenu () {
 doAction () {
 	case $1 in
 		--help) 
-			printMenu ;;
+			printMenu;;
 		make)
-			createRepository $3 $2
-			createLogFile $(findRepoIndex $2) ;;
+			createRepository "$3" $2
+			createLogFile $(findRepoIndex $2);;
 		repos)
-			printRepos ;;
+			printRepos;;
+		createfile)
+			createNewFile "$3" $(findRepoIndex $2);;
+		deletefile)
+			deleteFile "$3" $(findRepoIndex $2);;
 		list)
-			listFiles $(findRepoIndex $2) ;;
+			listFiles $(findRepoIndex $2);;
 		edit)
-			editFile $3 $(findRepoIndex $2) ;;
+			editFile $3 $(findRepoIndex $2);;
 		stage)
 			if [ "$3" = "-a" ]; then
 				moveAllToStagingFolder $(findRepoIndex $2)
 			else
 				moveToStagingFolder $3 $(findRepoIndex $2)
-			fi ;;
+			fi;;
 		unstage)
 			if [ "$3" = "-a" ]; then
 				clearStagingFolder $(findRepoIndex $2)
 			else
 				moveFromStagingFolder $3 $(findRepoIndex $2)
-			fi ;;
+			fi;;
 		stageclear)
-			clearStagingFolder $(findRepoIndex $2) ;;
+			clearStagingFolder $(findRepoIndex $2);;
 		stageall)
-			moveAllToStagingFolder $(findRepoIndex $2) ;;
+			moveAllToStagingFolder $(findRepoIndex $2);;
 		commit)
-			makeCommit $3 $(findRepoIndex $2) ;;
+			makeCommit $3 $(findRepoIndex $2);;
 		revert)
-			revertCommit $3 $(findRepoIndex $2) ;;
+			revertCommit $3 $(findRepoIndex $2);;
 		commits)
-			printCommits $(findRepoIndex $2) ;;
+			printCommits $(findRepoIndex $2);;
 		zip)
-			zipRep $(findRepoIndex $2) ;;
+			zipRep $(findRepoIndex $2);;
 		test)
 			test ;;
 		*)
-			echo "Error, unknown command" ;;
+			echo "Error, unknown command";;
 	esac
 }
 
