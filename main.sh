@@ -51,11 +51,11 @@ createRepository () {
 }
 
 deleteRepository () {
-	#assumptions: $1 is a repository index, $2 is a repository name
-	if [ -d ${repositoryPaths[$1]} ]; then
+	#assumptions: $1 is a repository name, $2 is a repository index
+	if [ -d ${repositoryPaths[$2]} ]; then
 		cd $HOME
-		cd $1
-		rm -r ${repositoryPaths[$1]}
+		cd $2
+		rm -r ${repositoryPaths[$2]}
 	else
 		echo "The repository you're trying to delete doesn't exist"
 	fi
@@ -213,7 +213,7 @@ doAction () {
 			createRepository $3 $2
 			createLogFile $(findRepoIndex $2) ;;
 		delete)
-			deleteRepository $(findRepoIndex $3) $2 ;;
+			deleteRepository $2 $(findRepoIndex $3) ;;
 		repos)
 			printRepos ;;
 		list)
