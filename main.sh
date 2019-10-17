@@ -36,15 +36,27 @@ saveConfig () {
 
 createRepository () {
 	#assumptions: $1 is a path to the repository, $2 is a repository name
+	cd $HOME
+	if [ -d ${1} ]; then
+		cd $1
+		mkdir .${2}
+	else
+		echo "The path to the new Repository is invalid. Creating new pathway..."
+		mkdir -p ${repositoryPaths[$1]}/$2
+	fi
+	mkdir .${2}/${stagingFolder}
+	repositories[${#repositories[@]}]=$2
+	repositoryPaths[${#repositoryPaths[@]}]=$1
+}
+
+deleteRepository () {
+	#assumptions: $1 is a repository index, $2 is a repository name
 	if [ -d ${repositoryPaths[$1]} ]; then
 		cd $HOME
 		cd $1
-		mkdir .${2}
-		mkdir .${2}/${stagingFolder}
-		repositories[${#repositories[@]}]=$2
-		repositoryPaths[${#repositoryPaths[@]}]=$1
+		rm -r ${repositoryPaths[$1]}
 	else
-		echo "The path to the new Repository is invalid"
+		echo "The repository you're trying to delete doesn't exist"
 	fi
 }
 
