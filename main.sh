@@ -57,6 +57,7 @@ createLogFile () {
 
 addCommitToLogFile () {
 	#assumptions: $1 is a repository index, $2 is a commit message, $3 is timestamp, log file exists
+	cd $HOME
 	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
 	echo -e "${3}\t${2}" >> ${logFile}
 }
@@ -245,7 +246,6 @@ makeCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit message
 	#--------------if [ repo doesnt exist ] then print error, if [ no commit message given ] then print error, else print code below
 	if [ -d ${repositoryPaths[$2]} ] && [ -n $1 ]; then
-		cd $HOME
 		local timestamp=$(date +%s)
 		cd $HOME
 		cd ./${repositoryPaths[$2]}/.${repositories[$2]}
@@ -263,7 +263,7 @@ makeCommit () {
 }
 
 # Validation for general 
-if [ $# -eq 0 ]; then
+if [ $# -lt 2 ]; then
 	echo "No arguments were given."
 fi
 
