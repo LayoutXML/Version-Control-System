@@ -3,6 +3,7 @@
 configFile="jet.cfg"
 logFile="log.txt"
 stagingFolder="staging"
+backupFolder="backup"
 #repositories - array of repository names, initialised during config reading
 #repositoryPaths - array of repository paths from home folder, initialised during config reading
 
@@ -232,7 +233,7 @@ doAction () {
 			createRepository "$3" $2
 			createLogFile $(findRepoIndex $2);;
 		delete)
-			deleteRepository $2 $(findRepoIndex $3) ;;
+			deleteRepository $2 $(findRepoIndex $3);;
 		repos)
 			printRepos;;
 		createfile)
@@ -267,8 +268,12 @@ doAction () {
 			printCommits $(findRepoIndex $2);;
 		zip)
 			zipRep $(findRepoIndex $2);;
-		test)
-			test ;;
+		autoBackup)
+			automaticBackups $(findRepoIndex $2) &
+			echo -e "Automatically backing up all repository files. To stop enter \"kill $!\"";;
+		autoStaging)
+			automaticStaging $(findRepoIndex $2) &
+			echo -e "Automatically staging changed repository files. To stop enter \"kill $!\"";;
 		*)
 			echo "Error, unknown command";;
 	esac
@@ -328,6 +333,42 @@ makeCommit () {
   fi
 }
 
+automaticBackups () {
+	#assumptions: $1 is a repository index
+	cd $HOME
+	cd ./${repositoryPaths[$1]}
+	mkdir -p "./.${repositories[$1]}/${backupFolder}"
+	while true; do
+		cd $HOME
+		cd ./${repositoryPaths[$1]}
+		for i in *; do
+			if [ "$i" != "*" ]; then
+				cp -r "$i" "./.${repositories[$1]}/${backupFolder}/$i"
+			fi
+		done
+		sleep 1m
+	done
+}
+
+automaticStaging () {
+	#assumptions: $1 is a repository index
+	cd $HOME
+	cd ./${repositoryPaths[$1]}
+	while true; do
+		cd $HOME
+		cd ./${repositoryPaths[$1]}
+		for i in *; do
+			if [ "$i" != "*" ]; then
+				difference=$(diff "$i" "./.${repositories[$1]}/${stagingFolder}/$i")
+				if [ $? -ne 0 ] || [ "$difference" ]; then
+					cp -r "$i" "./.${repositories[$1]}/${stagingFolder}/$i"
+				fi
+			fi
+		done
+		sleep 1m
+	done
+}
+
 # Validation for general 
 if [ $# -eq 0 ]; then
 	echo "No arguments were given."
@@ -340,7 +381,9 @@ fi
 
 loadConfig
 doAction "$@"
-saveConfig
+if [ "$1" != "autoBackup" ]; then
+	saveConfig
+fi
 if ! [ -z $2 ] && [ $1 != "list" ]; then
 	echo Files:
 	listFiles $(findRepoIndex $2)
