@@ -208,8 +208,9 @@ printCommits () {
 }
 
 printMenu () {
-	echo -e "Jet Version Control"
-	echo -e "--help\t\tprints this menu"
+	echo -e "\n\t\tJet Version Control"
+	echo -e "Enter \"./main.sh\" followed by any command below to get started."
+	echo -e "\n--help\t\tprints this help menu again"
 	echo -e "make\t\tcreates a new repository"
 	echo -e "delete\t\tdeletes a repository"
 	echo -e "repos\t\tprint all repositories"
@@ -219,10 +220,10 @@ printMenu () {
 	echo -e "unstaget\tmoves a file from the staging folder"
 	echo -e "stageclear\tclears out the staging folder"
 	echo -e "commit\t\tmake a commit"
-	echo -e "revert\trevert a commit"
+	echo -e "revert\t\trevert a commit"
 	echo -e "commits\t\tprints a list of existing commits"
-	echo -e "zip\t\zip a repository"
-	echo -e "exit\t\texits Jet"
+	echo -e "zip\t\tzip a repository"
+	echo -e "exit\t\texits Jet\n"
 }
 
 doAction () {
@@ -396,13 +397,13 @@ automaticStaging () {
 
 # Validation for general 
 if [ $# -eq 0 ]; then
+	#printMenu	-	leave commented until finished for ease of testing purposes
 	echo "No arguments were given."
 fi
 
 #$1 - command name
 #$2 - repository name (not case sensitive)
 #$3... - function arguments
-
 
 loadConfig
 doAction "$@"
