@@ -51,13 +51,12 @@ createRepository () {
 	mkdir .${2}/${stagingFolder}
 	repositories[${#repositories[@]}]="$2"
 	repositoryPaths[${#repositoryPaths[@]}]="$1"
-	#moveAllToStagingFolder $(findRepoIndex $2)
 }
 
 deleteRepository () {
 	#assumptions: $1 is a repository name, $2 is a repository index
+	cd $HOME
 	if [ -d "${repositoryPaths[$2]}" ]; then
-		cd $HOME
 		rm -r "${repositoryPaths[$2]}"
 		repositories[$2]=""
 		repositoryPaths[$2]=""
@@ -102,8 +101,8 @@ addCommitToLogFile () {
 
 listFiles () {
   	#assumptions: $1 is a repository index
+	cd $HOME
   	if [ -d "${repositoryPaths[$1]}" ]; then
-		cd $HOME
 		cd "./${repositoryPaths[$1]}"
 		ls
 	else
@@ -113,8 +112,8 @@ listFiles () {
 
 zipRep () {
 	#assumptions: $1 is a repository index
+	cd $HOME
 	if [ -d ${repositoryPaths[$1]} ]; then
-		cd $HOME
 		zip -r ./${repositoryPaths[$1]}/${repositories[$1]}.zip ./${repositoryPaths[$1]}
 	else
 		echo "The repository you're trying to compress doesn't exist"
@@ -123,8 +122,8 @@ zipRep () {
 
 editFile () {
 	#assumptions: $1 is a filename, $2 repository index
+	cd $HOME
 	if [ -d "${repositoryPaths[$2]}" ]; then
-		cd $HOME
 		cd "./${repositoryPaths[$2]}"
 		if [ -f $1 ]; then
 			xdg-open $1
@@ -138,10 +137,8 @@ editFile () {
 
 moveToStagingFolder () {
 	#assumptions: $1 is a file name, $2 rep index
-	echo $1 
-	echo $2
+	cd $HOME
 	if [ -d "${repositoryPaths[$2]}" ]; then
-		cd $HOME
 		cd "./${repositoryPaths[$2]}"
 		if [ -f "$1" ]; then
 			cp -r ${1} ./.${repositories[$2]}/${stagingFolder}/
@@ -169,8 +166,8 @@ moveAllToStagingFolder () {
 
 moveFromStagingFolder () {
 	#$1 filename, $2 rep index
+	cd $HOME
 	if [ -d ${repositoryPaths[$2]} ]; then
-		cd $HOME
 		cd ./${repositoryPaths[$2]}/.${repositories[$2]}/${stagingFolder}
 		if [ -f $1 ]; then
 			rm -r $1
@@ -187,8 +184,8 @@ moveFromStagingFolder () {
 
 clearStagingFolder () {
 	#$1 rep index
+	cd $HOME
 	if [ -d ${repositoryPaths[$1]} ]; then
-		cd $HOME
 		cd ./${repositoryPaths[$1]}/.${repositories[$1]}/${stagingFolder}
 		for i in *; do
 			if [ "$i" != "*" ]; then
@@ -208,8 +205,8 @@ printRepos () {
 
 printCommits () {
 	#$1 rep index
+	cd $HOME
 	if [ -d $1 ]; then
-		cd $HOME
 		cd ./${repositoryPaths[$1]}/.${repositories[$1]}/
 		for i in *; do
 			if [ "$i" != $stagingFolder ] && [ "$i" != $logFile ] && [ "$i" != "*" ]; then
@@ -330,6 +327,7 @@ findRepoIndex () {
 
 revertCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit timestamp
+	cd $HOME
 	if [ -d ${repositoryPaths[$2]} ]; then
 	  local date=$(date +'%Y-%m-%d %H:%M:%S')
 		addCommitToLogFile $2 "Reverted commit $1" $timestamp
@@ -354,6 +352,7 @@ revertCommit () {
 makeCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit message
 	#--------------if [ repo doesnt exist ] then print error, if [ no commit message given ] then print error, else print code below
+	cd $HOME
 	if [ -d ${repositoryPaths[$2]} ] && [ -n $1 ]; then
 	  local date=$(date +'%Y-%m-%d %H:%M:%S')
 		local timestamp=$(date +%s)
