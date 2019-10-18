@@ -28,8 +28,12 @@ saveConfig () {
 	rm $configFile
 	touch $configFile 
 	for i in ${!repositories[@]}; do
-		echo ${repositories[$i]} >> $configFile
-		echo ${repositoryPaths[$i]} >> $configFile
+		if [ "${repositories[$i]}" != "" ]; then
+			echo "${repositories[$i]}" >> $configFile
+		fi
+		if [ "${repositoryPaths[$i]}" != "" ]; then
+			echo "${repositoryPaths[$i]}" >> $configFile
+		fi
 	done
 }
 
@@ -45,18 +49,18 @@ createRepository () {
 		cd $1
 	fi
 	mkdir .${2}/${stagingFolder}
-	repositories+="$2"
-	repositoryPaths+="$1"
+	repositories[${#repositories[@]}]="$2"
+	repositoryPaths[${#repositoryPaths[@]}]="$1"
+	#moveAllToStagingFolder $(findRepoIndex $2)
 }
 
 deleteRepository () {
 	#assumptions: $1 is a repository name, $2 is a repository index
-	if [ -d ${repositoryPaths[$2]} ]; then
+	if [ -d "${repositoryPaths[$2]}" ]; then
 		cd $HOME
-		cd $2
-		rm -r ${repositoryPaths[$2]}
-		unset 'repositories[$1]'
-		unset 'repositoryPaths[$2]'
+		rm -r "${repositoryPaths[$2]}"
+		repositories[$2]=""
+		repositoryPaths[$2]=""
 	else
 		echo "The repository you're trying to delete doesn't exist"
 	fi
@@ -78,6 +82,7 @@ createNewFile () {
 	else 
 		touch "$1"
 	fi
+	moveToStagingFolder $1 $2
 }
 
 deleteFile () {
@@ -85,6 +90,7 @@ deleteFile () {
 	cd $HOME
 	cd "./${repositoryPaths[$2]}"
 	rm -r "$1"
+	moveFromStagingFolder $1 $2
 }
 
 addCommitToLogFile () {
@@ -117,28 +123,34 @@ zipRep () {
 
 editFile () {
 	#assumptions: $1 is a filename, $2 repository index
-	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
+	if [ -d "${repositoryPaths[$2]}" ]; then
 		cd $HOME
-		cd ./${repositoryPaths[$2]}
-		xdg-open $1
-	elif ! [ -f $1 ]; then
-		echo "The file you're trying to open doesn't exist"
+		cd "./${repositoryPaths[$2]}"
+		if [ -f $1 ]; then
+			xdg-open $1
+		else
+			echo "The file you're trying to open doesn't exist"
+		fi
 	else
 		echo "The repository you're trying to access a file from doesn't exist"
 	fi
 }
 
 moveToStagingFolder () {
-	#assumptions: in the rep folder , $1 is a file name, $2 rep index
-	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
+	#assumptions: $1 is a file name, $2 rep index
+	echo $1 
+	echo $2
+	if [ -d "${repositoryPaths[$2]}" ]; then
 		cd $HOME
-		cd ./${repositoryPaths[$2]}
-		cp -r ${1} ./.${repositories[$2]}/${stagingFolder}/
+		cd "./${repositoryPaths[$2]}"
+		if [ -f "$1" ]; then
+			cp -r ${1} ./.${repositories[$2]}/${stagingFolder}/
+		else
+			echo "The file you're trying to stage doesn't exist"
+		fi
 		if [ $? -ne 0 ]; then
 			echo "Cannot move to the staging folder."
 		fi	
-	elif ! [ -f $1 ]; then
-		echo "The file you're trying to stage doesn't exist"
 	else
 		echo "The repository you're trying to stage a file from doesn't exist"
 	fi
@@ -147,7 +159,7 @@ moveToStagingFolder () {
 moveAllToStagingFolder () {
 	#assumptions: $1 rep index
 	cd $HOME
-	cd ./${repositoryPaths[$1]}
+	cd "./${repositoryPaths[$1]}"
 	for i in *; do
 		if [ "$i" != "*" ]; then
 			cp -r "$i" "./.${repositories[$1]}/${stagingFolder}/"
@@ -157,15 +169,17 @@ moveAllToStagingFolder () {
 
 moveFromStagingFolder () {
 	#$1 filename, $2 rep index
-	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
+	if [ -d ${repositoryPaths[$2]} ]; then
 		cd $HOME
 		cd ./${repositoryPaths[$2]}/.${repositories[$2]}/${stagingFolder}
-		rm -r $1
+		if [ -f $1 ]; then
+			rm -r $1
+		else
+			echo "The file you're trying to remove from the staging area doesn't exist"
+		fi
 		if [ $? -ne 0 ]; then
 			echo "Cannot move from the staging folder."
 		fi
-	elif ! [ -f $1 ]; then
-		echo "The file you're trying to remove from the staging area doesn't exist"
 	else
 		echo "The repository you're trying move a file to doesn't exist"
 	fi
@@ -234,7 +248,7 @@ doAction () {
 			createRepository "$3" $2
 			createLogFile $(findRepoIndex $2);;
 		delete)
-			deleteRepository $2 $(findRepoIndex $3);;
+			deleteRepository "$3" $(findRepoIndex $2);;
 		repos)
 			printRepos;;
 		createfile)
@@ -269,16 +283,16 @@ doAction () {
 			printCommits $(findRepoIndex $2);;
 		zip)
 			zipRep $(findRepoIndex $2);;
-		autoBackup)
+		aautobackup)
 			automaticBackups $(findRepoIndex $2) &
 			echo -e "Automatically backing up all repository files. To stop enter \"kill $!\"";;
-		autoStaging)
+		autostaging)
 			automaticStaging $(findRepoIndex $2) &
 			echo -e "Automatically staging changed repository files. To stop enter \"kill $!\"";;
-		permissionProtect)
+		permissionprotect)
 			createUserGroup $(findRepoIndex $2)
 			lockToUserGroup $(findRepoIndex $2);;
-		allowUser)
+		allowuser)
 			createUserGroup $(findRepoIndex $2)
 			addUsersToGroup $3 $(findRepoIndex $2);;
 		*)
@@ -362,11 +376,11 @@ makeCommit () {
 automaticBackups () {
 	#assumptions: $1 is a repository index
 	cd $HOME
-	cd ./${repositoryPaths[$1]}
+	cd "./${repositoryPaths[$1]}"
 	mkdir -p "./.${repositories[$1]}/${backupFolder}"
 	while true; do
 		cd $HOME
-		cd ./${repositoryPaths[$1]}
+		cd "./${repositoryPaths[$1]}"
 		for i in *; do
 			if [ "$i" != "*" ]; then
 				cp -r "$i" "./.${repositories[$1]}/${backupFolder}/$i"
@@ -378,11 +392,9 @@ automaticBackups () {
 
 automaticStaging () {
 	#assumptions: $1 is a repository index
-	cd $HOME
-	cd ./${repositoryPaths[$1]}
 	while true; do
 		cd $HOME
-		cd ./${repositoryPaths[$1]}
+		cd "./${repositoryPaths[$1]}"
 		for i in *; do
 			if [ "$i" != "*" ]; then
 				difference=$(diff "$i" "./.${repositories[$1]}/${stagingFolder}/$i")
