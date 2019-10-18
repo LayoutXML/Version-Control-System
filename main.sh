@@ -193,7 +193,9 @@ editFile () {
 	if [ -d "${repositoryPaths[$2]}" ]; then
 		cd "./${repositoryPaths[$2]}"
 		if [ -f $1 ]; then
-			xdg-open $1
+			if [ "$(validatePassword "$(findPasswordIndex ${repositories[$2]})")" = 0 ]; then
+				xdg-open $1
+			fi
 		else
 			echo "The file you're trying to open doesn't exist"
 		fi
@@ -434,7 +436,8 @@ saveConfig () {
 		fi
 	done
 	if [ "${#passwordRepos[@]}" -gt 0 ]; then
-		rm $passwordsFile
+		rm $passwordsFile 2> /dev/null
+		rm $passwordsFileEncrypted 2> /dev/null
 		touch $passwordsFile
 		for i in ${!passwordRepos[@]}; do
 			echo ${passwordRepos[$i]} >> $passwordsFile
