@@ -274,9 +274,34 @@ doAction () {
 		autoStaging)
 			automaticStaging $(findRepoIndex $2) &
 			echo -e "Automatically staging changed repository files. To stop enter \"kill $!\"";;
+		permissionProtect)
+			createUserGroup $(findRepoIndex $2)
+			lockToUserGroup $(findRepoIndex $2);;
+		allowUser)
+			createUserGroup $(findRepoIndex $2)
+			addUsersToGroup $3 $(findRepoIndex $2);;
 		*)
 			echo "Error, unknown command";;
 	esac
+}
+
+addUsersToGroup () {
+	#assumptions: $2 rep index, $1 is username
+	sudo usermod -a -G "${repositories[$2]}" "$1"
+}
+
+lockToUserGroup () {
+	#assumptions: $1 rep index
+	echo "Your password:"
+	chmod -R o-rwx "./${repositoryPaths[$1]}"
+	chown -R :"${repositories[$1]}" "./${repositoryPaths[$1]}"
+}
+
+createUserGroup () {
+	#assumptions: $1 rep index
+	if ! [ grep -q "${repositories[$1]}" /etc/group ]; then
+		sudo groupadd "${repositories[$1]}"
+	fi
 }
 
 findRepoIndex () {
