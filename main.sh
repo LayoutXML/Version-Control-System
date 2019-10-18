@@ -1,10 +1,14 @@
 #!/bin/bash
 
 configFile="jet.cfg"
+passwordsFile="jet-passwords.txt"
+passwordsFileEncrypted="jet-passwords.txt.gpg"
 logFile="log.txt"
 stagingFolder="staging"
 #repositories - array of repository names, initialised during config reading
 #repositoryPaths - array of repository paths from home folder, initialised during config reading
+#passwords
+#passwordRepos
 
 loadConfig () {
 	cd $HOME
@@ -20,6 +24,21 @@ loadConfig () {
 			fi
 		done < $configFile
 	fi
+	if [ -f "$passwordsFileEncrypted" ]; then
+		# echo "Enter an ecnryption password"
+		gpg --passphrase "test" --batch -d $passwordsFileEncrypted > $passwordsFile
+		odd=true
+		while read line; do
+			if [ $odd = true ]; then
+				passwordRepos[${#passwordRepos[@]}]=$line
+				odd=false
+			else
+				passwords[${#passwords[@]}]=$line
+				odd=true
+			fi
+		done < $passwordsFile
+		rm $passwordsFile
+	fi
 }
 
 saveConfig () {
@@ -30,6 +49,17 @@ saveConfig () {
 		echo ${repositories[$i]} >> $configFile
 		echo ${repositoryPaths[$i]} >> $configFile
 	done
+	if [ "${#passwordRepos[@]}" -gt 0 ]; then
+		rm $passwordsFile
+		touch $passwordsFile
+		for i in ${!passwordRepos[@]}; do
+			echo ${passwordRepos[$i]} >> $passwordsFile
+			echo ${passwords[$i]} >> $passwordsFile
+		done
+		# echo "Set an ecnryption password"
+		gpg --passphrase "test" --batch -c $passwordsFile
+		rm $passwordsFile
+	fi
 }
 
 createRepository () {
@@ -116,14 +146,14 @@ zipRep () {
 
 editFile () {
 	#assumptions: $1 is a filename, $2 repository index
-	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
-		cd $HOME
-		cd ./${repositoryPaths[$2]}
-		xdg-open $1
+	cd $HOME
+	cd ./${repositoryPaths[$2]}
+	if [ -f $1 ]; then
+		if [ "$(validatePassword "$(findPasswordIndex ${repositories[$2]})")" = 0 ]; then
+			xdg-open $1
+		fi
 	elif ! [ -f $1 ]; then
 		echo "The file you're trying to open doesn't exist"
-	else
-		echo "The repository you're trying to access a file from doesn't exist"
 	fi
 }
 
@@ -267,20 +297,59 @@ doAction () {
 			printCommits $(findRepoIndex $2);;
 		zip)
 			zipRep $(findRepoIndex $2);;
-		test)
-			test ;;
+		setPassword)
+			setPassword $3 $2;;
 		*)
 			echo "Error, unknown command";;
 	esac
 }
 
 findRepoIndex () {
-	# shopt -s nocasematch
+	found=false
 	for i in ${!repositories[@]}; do
 		if [ "${repositories[$i]}" = "$1" ]; then
+			found=true
 			echo $i
 		fi
 	done
+	if [ $found = false ]; then
+		echo -1
+	fi
+}
+
+findPasswordIndex () {
+	found=false
+	for i in ${!passwordRepos[@]}; do
+		if [ "${passwordRepos[$i]}" = "$1" ]; then
+			found=true
+			echo $i
+		fi
+	done
+	if [ $found = false ]; then
+		echo -1
+	fi
+}
+
+setPassword () {
+	#assumptions: $1 is a password, $2 is a repository name
+	passwordRepos[${#passwordRepos[@]}]=$2
+	passwords[${#passwords[@]}]="$1"
+}
+
+validatePassword () {
+	#assumptions: $1 is a repository index
+	if [ "$1" != "-1" ]; then
+		echo "Enter repository password: " > $(tty)
+		read -s input
+		if [ "$input" = "${passwords[$1]}" ]; then
+			echo 0
+		else
+			echo "Password is incorrect" > $(tty)
+			echo 1
+		fi
+	else
+		echo 0
+	fi
 }
 
 revertCommit () {
