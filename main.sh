@@ -5,6 +5,7 @@ passwordsFile="jet-passwords.txt"
 passwordsFileEncrypted="jet-passwords.txt.gpg"
 logFile="log.txt"
 stagingFolder="staging"
+backupFolder="backup"
 #repositories - array of repository names, initialised during config reading
 #repositoryPaths - array of repository paths from home folder, initialised during config reading
 #passwords
@@ -46,8 +47,12 @@ saveConfig () {
 	rm $configFile
 	touch $configFile 
 	for i in ${!repositories[@]}; do
-		echo ${repositories[$i]} >> $configFile
-		echo ${repositoryPaths[$i]} >> $configFile
+		if [ "${repositories[$i]}" != "" ]; then
+			echo "${repositories[$i]}" >> $configFile
+		fi
+		if [ "${repositoryPaths[$i]}" != "" ]; then
+			echo "${repositoryPaths[$i]}" >> $configFile
+		fi
 	done
 	if [ "${#passwordRepos[@]}" -gt 0 ]; then
 		rm $passwordsFile
@@ -74,18 +79,17 @@ createRepository () {
 		cd $1
 	fi
 	mkdir .${2}/${stagingFolder}
-	repositories+="$2"
-	repositoryPaths+="$1"
+	repositories[${#repositories[@]}]="$2"
+	repositoryPaths[${#repositoryPaths[@]}]="$1"
 }
 
 deleteRepository () {
 	#assumptions: $1 is a repository name, $2 is a repository index
-	if [ -d ${repositoryPaths[$2]} ]; then
-		cd $HOME
-		cd $2
-		rm -r ${repositoryPaths[$2]}
-		unset 'repositories[$1]'
-		unset 'repositoryPaths[$2]'
+	cd $HOME
+	if [ -d "${repositoryPaths[$2]}" ]; then
+		rm -r "${repositoryPaths[$2]}"
+		repositories[$2]=""
+		repositoryPaths[$2]=""
 	else
 		echo "The repository you're trying to delete doesn't exist"
 	fi
@@ -107,6 +111,7 @@ createNewFile () {
 	else 
 		touch "$1"
 	fi
+	moveToStagingFolder $1 $2
 }
 
 deleteFile () {
@@ -114,6 +119,7 @@ deleteFile () {
 	cd $HOME
 	cd "./${repositoryPaths[$2]}"
 	rm -r "$1"
+	moveFromStagingFolder $1 $2
 }
 
 addCommitToLogFile () {
@@ -125,8 +131,8 @@ addCommitToLogFile () {
 
 listFiles () {
   	#assumptions: $1 is a repository index
+	cd $HOME
   	if [ -d "${repositoryPaths[$1]}" ]; then
-		cd $HOME
 		cd "./${repositoryPaths[$1]}"
 		ls
 	else
@@ -136,8 +142,8 @@ listFiles () {
 
 zipRep () {
 	#assumptions: $1 is a repository index
+	cd $HOME
 	if [ -d ${repositoryPaths[$1]} ]; then
-		cd $HOME
 		zip -r ./${repositoryPaths[$1]}/${repositories[$1]}.zip ./${repositoryPaths[$1]}
 	else
 		echo "The repository you're trying to compress doesn't exist"
@@ -147,27 +153,31 @@ zipRep () {
 editFile () {
 	#assumptions: $1 is a filename, $2 repository index
 	cd $HOME
-	cd ./${repositoryPaths[$2]}
-	if [ -f $1 ]; then
-		if [ "$(validatePassword "$(findPasswordIndex ${repositories[$2]})")" = 0 ]; then
+	if [ -d "${repositoryPaths[$2]}" ]; then
+		cd "./${repositoryPaths[$2]}"
+		if [ -f $1 ]; then
 			xdg-open $1
+		else
+			echo "The file you're trying to open doesn't exist"
 		fi
-	elif ! [ -f $1 ]; then
-		echo "The file you're trying to open doesn't exist"
+	else
+		echo "The repository you're trying to access a file from doesn't exist"
 	fi
 }
 
 moveToStagingFolder () {
-	#assumptions: in the rep folder , $1 is a file name, $2 rep index
-	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
-		cd $HOME
-		cd ./${repositoryPaths[$2]}
-		cp -r ${1} ./.${repositories[$2]}/${stagingFolder}/
+	#assumptions: $1 is a file name, $2 rep index
+	cd $HOME
+	if [ -d "${repositoryPaths[$2]}" ]; then
+		cd "./${repositoryPaths[$2]}"
+		if [ -f "$1" ]; then
+			cp -r ${1} ./.${repositories[$2]}/${stagingFolder}/
+		else
+			echo "The file you're trying to stage doesn't exist"
+		fi
 		if [ $? -ne 0 ]; then
 			echo "Cannot move to the staging folder."
 		fi	
-	elif ! [ -f $1 ]; then
-		echo "The file you're trying to stage doesn't exist"
 	else
 		echo "The repository you're trying to stage a file from doesn't exist"
 	fi
@@ -176,7 +186,7 @@ moveToStagingFolder () {
 moveAllToStagingFolder () {
 	#assumptions: $1 rep index
 	cd $HOME
-	cd ./${repositoryPaths[$1]}
+	cd "./${repositoryPaths[$1]}"
 	for i in *; do
 		if [ "$i" != "*" ]; then
 			cp -r "$i" "./.${repositories[$1]}/${stagingFolder}/"
@@ -186,15 +196,17 @@ moveAllToStagingFolder () {
 
 moveFromStagingFolder () {
 	#$1 filename, $2 rep index
-	if [ -f $1 ] && [ -d ${repositoryPaths[$2]} ]; then
-		cd $HOME
+	cd $HOME
+	if [ -d ${repositoryPaths[$2]} ]; then
 		cd ./${repositoryPaths[$2]}/.${repositories[$2]}/${stagingFolder}
-		rm -r $1
+		if [ -f $1 ]; then
+			rm -r $1
+		else
+			echo "The file you're trying to remove from the staging area doesn't exist"
+		fi
 		if [ $? -ne 0 ]; then
 			echo "Cannot move from the staging folder."
 		fi
-	elif ! [ -f $1 ]; then
-		echo "The file you're trying to remove from the staging area doesn't exist"
 	else
 		echo "The repository you're trying move a file to doesn't exist"
 	fi
@@ -202,8 +214,8 @@ moveFromStagingFolder () {
 
 clearStagingFolder () {
 	#$1 rep index
+	cd $HOME
 	if [ -d ${repositoryPaths[$1]} ]; then
-		cd $HOME
 		cd ./${repositoryPaths[$1]}/.${repositories[$1]}/${stagingFolder}
 		for i in *; do
 			if [ "$i" != "*" ]; then
@@ -223,8 +235,8 @@ printRepos () {
 
 printCommits () {
 	#$1 rep index
+	cd $HOME
 	if [ -d $1 ]; then
-		cd $HOME
 		cd ./${repositoryPaths[$1]}/.${repositories[$1]}/
 		for i in *; do
 			if [ "$i" != $stagingFolder ] && [ "$i" != $logFile ] && [ "$i" != "*" ]; then
@@ -237,21 +249,29 @@ printCommits () {
 }
 
 printMenu () {
-	echo -e "Jet Version Control"
-	echo -e "--help\t\tprints this menu"
+	echo -e "\n\t\tJet Version Control"
+	echo -e "Enter \"./main.sh\" followed by any command below to get started."
+	echo -e "\n--help\t\tprints this help menu again"
 	echo -e "make\t\tcreates a new repository"
 	echo -e "delete\t\tdeletes a repository"
 	echo -e "repos\t\tprint all repositories"
+	echo -e "createfile\tcreates a new file"
+	echo -e "deletefile\tdeletes a file"
 	echo -e "list\t\tlists all files in the current working directory"
 	echo -e "edit\t\tedit a file in an external editor"
 	echo -e "stage\t\tmoves file to staging folder"
-	echo -e "unstaget\tmoves a file from the staging folder"
+	echo -e "unstage\t\tmoves a file from the staging folder"
 	echo -e "stageclear\tclears out the staging folder"
+	echo -e "stageall\tmoves all files to staging folder"
 	echo -e "commit\t\tmake a commit"
-	echo -e "revert\trevert a commit"
+	echo -e "revert\t\trevert a commit"
 	echo -e "commits\t\tprints a list of existing commits"
-	echo -e "zip\t\zip a repository"
-	echo -e "exit\t\texits Jet"
+	echo -e "zip\t\tzip a repository"
+	echo -e "autobackup\tautomatically backing up files"
+	echo -e "autostaging\tautomatically staging edited files"
+	echo -e "permission\tpermission protection"
+	echo -e "allowuser\tassigning users and groups"
+	echo -e "exit\t\texits Jet\n"
 }
 
 doAction () {
@@ -262,7 +282,7 @@ doAction () {
 			createRepository "$3" $2
 			createLogFile $(findRepoIndex $2);;
 		delete)
-			deleteRepository $2 $(findRepoIndex $3) ;;
+			deleteRepository "$3" $(findRepoIndex $2);;
 		repos)
 			printRepos;;
 		createfile)
@@ -299,9 +319,40 @@ doAction () {
 			zipRep $(findRepoIndex $2);;
 		setPassword)
 			setPassword $3 $2;;
+		autobackup)
+			automaticBackups $(findRepoIndex $2) &
+			echo -e "Automatically backing up all repository files. To stop enter \"kill $!\"";;
+		autostaging)
+			automaticStaging $(findRepoIndex $2) &
+			echo -e "Automatically staging changed repository files. To stop enter \"kill $!\"";;
+		permission)
+			createUserGroup $(findRepoIndex $2)
+			lockToUserGroup $(findRepoIndex $2);;
+		allowuser)
+			createUserGroup $(findRepoIndex $2)
+			addUsersToGroup $3 $(findRepoIndex $2);;
 		*)
 			echo "Error, unknown command";;
 	esac
+}
+
+addUsersToGroup () {
+	#assumptions: $2 rep index, $1 is username
+	sudo usermod -a -G "${repositories[$2]}" "$1"
+}
+
+lockToUserGroup () {
+	#assumptions: $1 rep index
+	echo "Your password:"
+	chmod -R o-rwx "./${repositoryPaths[$1]}"
+	chown -R :"${repositories[$1]}" "./${repositoryPaths[$1]}"
+}
+
+createUserGroup () {
+	#assumptions: $1 rep index
+	if ! [ grep -q "${repositories[$1]}" /etc/group ]; then
+		sudo groupadd "${repositories[$1]}"
+	fi
 }
 
 findRepoIndex () {
@@ -354,6 +405,7 @@ validatePassword () {
 
 revertCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit timestamp
+	cd $HOME
 	if [ -d ${repositoryPaths[$2]} ]; then
 	  local date=$(date +'%Y-%m-%d %H:%M:%S')
 		addCommitToLogFile $2 "Reverted commit $1" $timestamp
@@ -378,6 +430,7 @@ revertCommit () {
 makeCommit () {
 	#assumptions: $2 is a repository index, $1 is a commit message
 	#--------------if [ repo doesnt exist ] then print error, if [ no commit message given ] then print error, else print code below
+	cd $HOME
 	if [ -d ${repositoryPaths[$2]} ] && [ -n $1 ]; then
 	  local date=$(date +'%Y-%m-%d %H:%M:%S')
 		local timestamp=$(date +%s)
@@ -397,8 +450,43 @@ makeCommit () {
   fi
 }
 
+automaticBackups () {
+	#assumptions: $1 is a repository index
+	cd $HOME
+	cd "./${repositoryPaths[$1]}"
+	mkdir -p "./.${repositories[$1]}/${backupFolder}"
+	while true; do
+		cd $HOME
+		cd "./${repositoryPaths[$1]}"
+		for i in *; do
+			if [ "$i" != "*" ]; then
+				cp -r "$i" "./.${repositories[$1]}/${backupFolder}/$i"
+			fi
+		done
+		sleep 1m
+	done
+}
+
+automaticStaging () {
+	#assumptions: $1 is a repository index
+	while true; do
+		cd $HOME
+		cd "./${repositoryPaths[$1]}"
+		for i in *; do
+			if [ "$i" != "*" ]; then
+				difference=$(diff "$i" "./.${repositories[$1]}/${stagingFolder}/$i")
+				if [ $? -ne 0 ] || [ "$difference" ]; then
+					cp -r "$i" "./.${repositories[$1]}/${stagingFolder}/$i"
+				fi
+			fi
+		done
+		sleep 1m
+	done
+}
+
 # Validation for general 
 if [ $# -eq 0 ]; then
+	#printMenu	-	leave commented until finished for ease of testing purposes
 	echo "No arguments were given."
 fi
 
@@ -406,10 +494,11 @@ fi
 #$2 - repository name (not case sensitive)
 #$3... - function arguments
 
-
 loadConfig
 doAction "$@"
-saveConfig
+if [ "$1" != "autoBackup" ]; then
+	saveConfig
+fi
 if ! [ -z $2 ] && [ $1 != "list" ]; then
 	echo Files:
 	listFiles $(findRepoIndex $2)
