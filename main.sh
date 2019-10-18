@@ -225,15 +225,22 @@ printMenu () {
 	echo -e "make\t\tcreates a new repository"
 	echo -e "delete\t\tdeletes a repository"
 	echo -e "repos\t\tprint all repositories"
+	echo -e "createfile\tcreates a new file"
+	echo -e "deletefile\tdeletes a file"
 	echo -e "list\t\tlists all files in the current working directory"
 	echo -e "edit\t\tedit a file in an external editor"
 	echo -e "stage\t\tmoves file to staging folder"
-	echo -e "unstaget\tmoves a file from the staging folder"
+	echo -e "unstage\t\tmoves a file from the staging folder"
 	echo -e "stageclear\tclears out the staging folder"
+	echo -e "stageall\tmoves all files to staging folder"
 	echo -e "commit\t\tmake a commit"
 	echo -e "revert\t\trevert a commit"
 	echo -e "commits\t\tprints a list of existing commits"
 	echo -e "zip\t\tzip a repository"
+	echo -e "autobackup\tautomatically backing up files"
+	echo -e "autostaging\tautomatically staging edited files"
+	echo -e "permission\tpermission protection"
+	echo -e "allowuser\tassigning users and groups"
 	echo -e "exit\t\texits Jet\n"
 }
 
@@ -280,13 +287,13 @@ doAction () {
 			printCommits $(findRepoIndex $2);;
 		zip)
 			zipRep $(findRepoIndex $2);;
-		aautobackup)
+		autobackup)
 			automaticBackups $(findRepoIndex $2) &
 			echo -e "Automatically backing up all repository files. To stop enter \"kill $!\"";;
 		autostaging)
 			automaticStaging $(findRepoIndex $2) &
 			echo -e "Automatically staging changed repository files. To stop enter \"kill $!\"";;
-		permissionprotect)
+		permission)
 			createUserGroup $(findRepoIndex $2)
 			lockToUserGroup $(findRepoIndex $2);;
 		allowuser)
