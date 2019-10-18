@@ -1,70 +1,118 @@
 #!/bin/bash
 
-configFile="jet.cfg"
+#####################################
+#	AC21009 Assignment 1			#
+#	Version Control System in bash  #
+#									#
+#	Written by:						#
+#	Rokas Jankunas - 180017115		#
+#	Emilija Budryte - 180003228		#
+#	Calum Logan - 180013466			#
+#									#
+#####################################
+
+#	We have named our Version Control System Jet (similar to Git) - Immediately below variable declarations
+#	are two functions which control and display a menu - below are definitions of the functions within the
+#	menu, followed by other functions which do more behind-the-scenes work.
+
+configFile="jet.cfg"	#Declaring variables to hold names of files and folders used by Jet
 passwordsFile="jet-passwords.txt"
 passwordsFileEncrypted="jet-passwords.txt.gpg"
 logFile="log.txt"
 stagingFolder="staging"
 backupFolder="backup"
+
 #repositories - array of repository names, initialised during config reading
 #repositoryPaths - array of repository paths from home folder, initialised during config reading
-#passwords
-#passwordRepos
+#passwordsFile - array of password
+#passwordRepos	- array of password repos
 
-loadConfig () {
-	cd $HOME
-	if [ -f "$configFile" ]; then
-		odd=true
-		while read line; do
-			if [ $odd = true ]; then
-				repositories[${#repositories[@]}]=$line
-				odd=false
+doAction () {	#Main function used to control the program
+	case $1 in  #Looks for user input and compares it to keywords below
+		--help) #Prints all input commands
+			printMenu;;	
+		make)	#Creates a new repository as well as its relevant log file
+			createRepository "$3" $2	
+			createLogFile $(findRepoIndex $2);;
+		delete)	#Deletes an existing repository
+			deleteRepository "$3" $(findRepoIndex $2);;
+		repos)	#Prints available repositories to the console
+			printRepos;;
+		createfile)	#Creates a new file
+			createNewFile "$3" $(findRepoIndex $2);;
+		deletefile)	#Deletes an existing file
+			deleteFile "$3" $(findRepoIndex $2);;
+		list)		#Lists all files in the current repository
+			listFiles $(findRepoIndex $2);;
+		edit)		#Opens a file externally for editing
+			editFile $3 $(findRepoIndex $2);;
+		stage)		#Moves a file (or all files if -a is used) to the staging area of the repository
+			if [ "$3" = "-a" ]; then
+				moveAllToStagingFolder $(findRepoIndex $2)
 			else
-				repositoryPaths[${#repositoryPaths[@]}]=$line
-				odd=true
-			fi
-		done < $configFile
-	fi
-	if [ -f "$passwordsFileEncrypted" ]; then
-		# echo "Enter an ecnryption password"
-		gpg --passphrase "test" --batch -d $passwordsFileEncrypted > $passwordsFile
-		odd=true
-		while read line; do
-			if [ $odd = true ]; then
-				passwordRepos[${#passwordRepos[@]}]=$line
-				odd=false
+				moveToStagingFolder $3 $(findRepoIndex $2)
+			fi;;
+		unstage)	#Removes a file (or all files if -a is used) from the staging area of the repository
+			if [ "$3" = "-a" ]; then
+				clearStagingFolder $(findRepoIndex $2)
 			else
-				passwords[${#passwords[@]}]=$line
-				odd=true
-			fi
-		done < $passwordsFile
-		rm $passwordsFile
-	fi
+				moveFromStagingFolder $3 $(findRepoIndex $2)
+			fi;;
+		stageclear)	#Does the same as does the same as unstage -a
+			clearStagingFolder $(findRepoIndex $2);;
+		stageall)	#Does the same as stage -a
+			moveAllToStagingFolder $(findRepoIndex $2);;
+		commit)		#Commits a file from the staging area of the current repository
+			makeCommit $3 $(findRepoIndex $2);;
+		revert)		#Reverts a specific commit
+			revertCommit $3 $(findRepoIndex $2);;
+		commits)	#Prints all commits made in the current repository
+			printCommits $(findRepoIndex $2);;
+		zip)
+			zipRep $(findRepoIndex $2);;
+		setPassword)
+			setPassword $3 $2;;
+		autobackup)
+			automaticBackups $(findRepoIndex $2) &
+			echo -e "Automatically backing up all repository files. To stop enter \"kill $!\"";;
+		autostaging)
+			automaticStaging $(findRepoIndex $2) &
+			echo -e "Automatically staging changed repository files. To stop enter \"kill $!\"";;
+		permission)
+			createUserGroup $(findRepoIndex $2)
+			lockToUserGroup $(findRepoIndex $2);;
+		allowuser)
+			createUserGroup $(findRepoIndex $2)
+			addUsersToGroup $3 $(findRepoIndex $2);;
+		*)
+			echo "Error, unknown command";;
+	esac
 }
 
-saveConfig () {
-	cd $HOME
-	rm $configFile
-	touch $configFile 
-	for i in ${!repositories[@]}; do
-		if [ "${repositories[$i]}" != "" ]; then
-			echo "${repositories[$i]}" >> $configFile
-		fi
-		if [ "${repositoryPaths[$i]}" != "" ]; then
-			echo "${repositoryPaths[$i]}" >> $configFile
-		fi
-	done
-	if [ "${#passwordRepos[@]}" -gt 0 ]; then
-		rm $passwordsFile
-		touch $passwordsFile
-		for i in ${!passwordRepos[@]}; do
-			echo ${passwordRepos[$i]} >> $passwordsFile
-			echo ${passwords[$i]} >> $passwordsFile
-		done
-		# echo "Set an ecnryption password"
-		gpg --passphrase "test" --batch -c $passwordsFile
-		rm $passwordsFile
-	fi
+printMenu () {
+	echo -e "\n\t\tJet Version Control"
+	echo -e "Enter \"./main.sh\" followed by any command below to get started."
+	echo -e "\n--help\t\tprints this help menu again"
+	echo -e "make\t\tcreates a new repository"
+	echo -e "delete\t\tdeletes a repository"
+	echo -e "repos\t\tprint all repositories"
+	echo -e "createfile\tcreates a new file"
+	echo -e "deletefile\tdeletes a file"
+	echo -e "list\t\tlists all files in the current working directory"
+	echo -e "edit\t\tedit a file in an external editor"
+	echo -e "stage\t\tmoves file to staging folder"
+	echo -e "unstage\t\tmoves a file from the staging folder"
+	echo -e "stageclear\tclears out the staging folder"
+	echo -e "stageall\tmoves all files to staging folder"
+	echo -e "commit\t\tmake a commit"
+	echo -e "revert\t\trevert a commit"
+	echo -e "commits\t\tprints a list of existing commits"
+	echo -e "zip\t\tzip a repository"
+	echo -e "autobackup\tautomatically backing up files"
+	echo -e "autostaging\tautomatically staging edited files"
+	echo -e "permission\tpermission protection"
+	echo -e "allowuser\tassigning users and groups"
+	echo -e "exit\t\texits Jet\n"
 }
 
 createRepository () {
@@ -83,6 +131,13 @@ createRepository () {
 	repositoryPaths[${#repositoryPaths[@]}]="$1"
 }
 
+createLogFile () {
+	#assumptions: $1 is a repository index
+	cd $HOME
+	cd "./${repositoryPaths[$1]}/.${repositories[$1]}"
+	touch ${logFile}
+}
+
 deleteRepository () {
 	#assumptions: $1 is a repository name, $2 is a repository index
 	cd $HOME
@@ -95,11 +150,10 @@ deleteRepository () {
 	fi
 }
 
-createLogFile () {
-	#assumptions: $1 is a repository index
-	cd $HOME
-	cd "./${repositoryPaths[$1]}/.${repositories[$1]}"
-	touch ${logFile}
+printRepos () {
+	for i in ${!repositories[@]}; do
+		echo -e "${repositories[$i]}\t${repositoryPaths[$i]}"
+  	done
 }
 
 createNewFile () {
@@ -122,13 +176,6 @@ deleteFile () {
 	moveFromStagingFolder $1 $2
 }
 
-addCommitToLogFile () {
-	#assumptions: $1 is a repository index, $2 is a commit message, $3 is date, $4 is commit timestamp (optional), log file exists
-	cd $HOME
-	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
-	echo -e "${3}\t${2}\t$(whoami)\t${4}" >> ${logFile}
-}
-
 listFiles () {
   	#assumptions: $1 is a repository index
 	cd $HOME
@@ -137,16 +184,6 @@ listFiles () {
 		ls
 	else
 		echo "The repository you're trying to list files from doesn't exist"
-	fi
-}
-
-zipRep () {
-	#assumptions: $1 is a repository index
-	cd $HOME
-	if [ -d ${repositoryPaths[$1]} ]; then
-		zip -r ./${repositoryPaths[$1]}/${repositories[$1]}.zip ./${repositoryPaths[$1]}
-	else
-		echo "The repository you're trying to compress doesn't exist"
 	fi
 }
 
@@ -181,17 +218,6 @@ moveToStagingFolder () {
 	else
 		echo "The repository you're trying to stage a file from doesn't exist"
 	fi
-}	
-
-moveAllToStagingFolder () {
-	#assumptions: $1 rep index
-	cd $HOME
-	cd "./${repositoryPaths[$1]}"
-	for i in *; do
-		if [ "$i" != "*" ]; then
-			cp -r "$i" "./.${repositories[$1]}/${stagingFolder}/"
-		fi
-	done
 }
 
 moveFromStagingFolder () {
@@ -212,6 +238,17 @@ moveFromStagingFolder () {
 	fi
 }
 
+moveAllToStagingFolder () {
+	#assumptions: $1 rep index
+	cd $HOME
+	cd "./${repositoryPaths[$1]}"
+	for i in *; do
+		if [ "$i" != "*" ]; then
+			cp -r "$i" "./.${repositories[$1]}/${stagingFolder}/"
+		fi
+	done
+}	
+
 clearStagingFolder () {
 	#$1 rep index
 	cd $HOME
@@ -227,180 +264,27 @@ clearStagingFolder () {
 	fi
 }
 
-printRepos () {
-	for i in ${!repositories[@]}; do
-		echo -e "${repositories[$i]}\t${repositoryPaths[$i]}"
-  	done
-}
-
-printCommits () {
-	#$1 rep index
+makeCommit () {
+	#assumptions: $2 is a repository index, $1 is a commit message
+	#--------------if [ repo doesnt exist ] then print error, if [ no commit message given ] then print error, else print code below
 	cd $HOME
-	if [ -d $1 ]; then
-		cd ./${repositoryPaths[$1]}/.${repositories[$1]}/
-		for i in *; do
-			if [ "$i" != $stagingFolder ] && [ "$i" != $logFile ] && [ "$i" != "*" ]; then
-				echo "$i"
-			fi
-		done
-	else
-		echo "The repository you're trying to print commits from doesn't exist"
-	fi
-}
-
-printMenu () {
-	echo -e "\n\t\tJet Version Control"
-	echo -e "Enter \"./main.sh\" followed by any command below to get started."
-	echo -e "\n--help\t\tprints this help menu again"
-	echo -e "make\t\tcreates a new repository"
-	echo -e "delete\t\tdeletes a repository"
-	echo -e "repos\t\tprint all repositories"
-	echo -e "createfile\tcreates a new file"
-	echo -e "deletefile\tdeletes a file"
-	echo -e "list\t\tlists all files in the current working directory"
-	echo -e "edit\t\tedit a file in an external editor"
-	echo -e "stage\t\tmoves file to staging folder"
-	echo -e "unstage\t\tmoves a file from the staging folder"
-	echo -e "stageclear\tclears out the staging folder"
-	echo -e "stageall\tmoves all files to staging folder"
-	echo -e "commit\t\tmake a commit"
-	echo -e "revert\t\trevert a commit"
-	echo -e "commits\t\tprints a list of existing commits"
-	echo -e "zip\t\tzip a repository"
-	echo -e "autobackup\tautomatically backing up files"
-	echo -e "autostaging\tautomatically staging edited files"
-	echo -e "permission\tpermission protection"
-	echo -e "allowuser\tassigning users and groups"
-	echo -e "exit\t\texits Jet\n"
-}
-
-doAction () {
-	case $1 in
-		--help) 
-			printMenu;;
-		make)
-			createRepository "$3" $2
-			createLogFile $(findRepoIndex $2);;
-		delete)
-			deleteRepository "$3" $(findRepoIndex $2);;
-		repos)
-			printRepos;;
-		createfile)
-			createNewFile "$3" $(findRepoIndex $2);;
-		deletefile)
-			deleteFile "$3" $(findRepoIndex $2);;
-		list)
-			listFiles $(findRepoIndex $2);;
-		edit)
-			editFile $3 $(findRepoIndex $2);;
-		stage)
-			if [ "$3" = "-a" ]; then
-				moveAllToStagingFolder $(findRepoIndex $2)
-			else
-				moveToStagingFolder $3 $(findRepoIndex $2)
-			fi;;
-		unstage)
-			if [ "$3" = "-a" ]; then
-				clearStagingFolder $(findRepoIndex $2)
-			else
-				moveFromStagingFolder $3 $(findRepoIndex $2)
-			fi;;
-		stageclear)
-			clearStagingFolder $(findRepoIndex $2);;
-		stageall)
-			moveAllToStagingFolder $(findRepoIndex $2);;
-		commit)
-			makeCommit $3 $(findRepoIndex $2);;
-		revert)
-			revertCommit $3 $(findRepoIndex $2);;
-		commits)
-			printCommits $(findRepoIndex $2);;
-		zip)
-			zipRep $(findRepoIndex $2);;
-		setPassword)
-			setPassword $3 $2;;
-		autobackup)
-			automaticBackups $(findRepoIndex $2) &
-			echo -e "Automatically backing up all repository files. To stop enter \"kill $!\"";;
-		autostaging)
-			automaticStaging $(findRepoIndex $2) &
-			echo -e "Automatically staging changed repository files. To stop enter \"kill $!\"";;
-		permission)
-			createUserGroup $(findRepoIndex $2)
-			lockToUserGroup $(findRepoIndex $2);;
-		allowuser)
-			createUserGroup $(findRepoIndex $2)
-			addUsersToGroup $3 $(findRepoIndex $2);;
-		*)
-			echo "Error, unknown command";;
-	esac
-}
-
-addUsersToGroup () {
-	#assumptions: $2 rep index, $1 is username
-	sudo usermod -a -G "${repositories[$2]}" "$1"
-}
-
-lockToUserGroup () {
-	#assumptions: $1 rep index
-	echo "Your password:"
-	chmod -R o-rwx "./${repositoryPaths[$1]}"
-	chown -R :"${repositories[$1]}" "./${repositoryPaths[$1]}"
-}
-
-createUserGroup () {
-	#assumptions: $1 rep index
-	if ! [ grep -q "${repositories[$1]}" /etc/group ]; then
-		sudo groupadd "${repositories[$1]}"
-	fi
-}
-
-findRepoIndex () {
-	found=false
-	for i in ${!repositories[@]}; do
-		if [ "${repositories[$i]}" = "$1" ]; then
-			found=true
-			echo $i
-		fi
-	done
-	if [ $found = false ]; then
-		echo -1
-	fi
-}
-
-findPasswordIndex () {
-	found=false
-	for i in ${!passwordRepos[@]}; do
-		if [ "${passwordRepos[$i]}" = "$1" ]; then
-			found=true
-			echo $i
-		fi
-	done
-	if [ $found = false ]; then
-		echo -1
-	fi
-}
-
-setPassword () {
-	#assumptions: $1 is a password, $2 is a repository name
-	passwordRepos[${#passwordRepos[@]}]=$2
-	passwords[${#passwords[@]}]="$1"
-}
-
-validatePassword () {
-	#assumptions: $1 is a repository index
-	if [ "$1" != "-1" ]; then
-		echo "Enter repository password: " > $(tty)
-		read -s input
-		if [ "$input" = "${passwords[$1]}" ]; then
-			echo 0
+	if [ -d ${repositoryPaths[$2]} ] && [ -n $1 ]; then
+	  local date=$(date +'%Y-%m-%d %H:%M:%S')
+		local timestamp=$(date +%s)
+		cd $HOME
+		cd ./${repositoryPaths[$2]}/.${repositories[$2]}
+		if [ $(ls -1q ./${stagingFolder} | wc -l) -gt 0 ]; then
+	  	addCommitToLogFile $2 $1 "$date" $timestamp
+			mkdir $timestamp
+			mv ./${stagingFolder}/* ./$timestamp
 		else
-			echo "Password is incorrect" > $(tty)
-			echo 1
+			echo "No files have been staged yet."
 		fi
+	elif [ -d $2 ]; then
+		echo "The repository you're trying to commit doesn't exist."
 	else
-		echo 0
-	fi
+		echo "No commit message was given."
+  fi
 }
 
 revertCommit () {
@@ -427,27 +311,35 @@ revertCommit () {
 	fi
 }
 
-makeCommit () {
-	#assumptions: $2 is a repository index, $1 is a commit message
-	#--------------if [ repo doesnt exist ] then print error, if [ no commit message given ] then print error, else print code below
+printCommits () {
+	#$1 rep index
 	cd $HOME
-	if [ -d ${repositoryPaths[$2]} ] && [ -n $1 ]; then
-	  local date=$(date +'%Y-%m-%d %H:%M:%S')
-		local timestamp=$(date +%s)
-		cd $HOME
-		cd ./${repositoryPaths[$2]}/.${repositories[$2]}
-		if [ $(ls -1q ./${stagingFolder} | wc -l) -gt 0 ]; then
-	  	addCommitToLogFile $2 $1 "$date" $timestamp
-			mkdir $timestamp
-			mv ./${stagingFolder}/* ./$timestamp
-		else
-			echo "No files have been staged yet."
-		fi
-	elif [ -d $2 ]; then
-		echo "The repository you're trying to commit doesn't exist."
+	if [ -d $1 ]; then
+		cd ./${repositoryPaths[$1]}/.${repositories[$1]}/
+		for i in *; do
+			if [ "$i" != $stagingFolder ] && [ "$i" != $logFile ] && [ "$i" != "*" ]; then
+				echo "$i"
+			fi
+		done
 	else
-		echo "No commit message was given."
-  fi
+		echo "The repository you're trying to print commits from doesn't exist"
+	fi
+}
+
+zipRep () {
+	#assumptions: $1 is a repository index
+	cd $HOME
+	if [ -d ${repositoryPaths[$1]} ]; then
+		zip -r ./${repositoryPaths[$1]}/${repositories[$1]}.zip ./${repositoryPaths[$1]}
+	else
+		echo "The repository you're trying to compress doesn't exist"
+	fi
+}
+
+setPassword () {
+	#assumptions: $1 is a password, $2 is a repository name
+	passwordRepos[${#passwordRepos[@]}]=$2
+	passwords[${#passwords[@]}]="$1"
 }
 
 automaticBackups () {
@@ -483,6 +375,140 @@ automaticStaging () {
 		sleep 1m
 	done
 }
+
+createUserGroup () {
+	#assumptions: $1 rep index
+	if ! [ grep -q "${repositories[$1]}" /etc/group ]; then
+		sudo groupadd "${repositories[$1]}"
+	fi
+}
+
+lockToUserGroup () {
+	#assumptions: $1 rep index
+	echo "Your password:"
+	chmod -R o-rwx "./${repositoryPaths[$1]}"
+	chown -R :"${repositories[$1]}" "./${repositoryPaths[$1]}"
+}
+
+addUsersToGroup () {
+	#assumptions: $2 rep index, $1 is username
+	sudo usermod -a -G "${repositories[$2]}" "$1"
+}
+
+#####################
+
+findRepoIndex () {
+	found=false
+	for i in ${!repositories[@]}; do
+		if [ "${repositories[$i]}" = "$1" ]; then
+			found=true
+			echo $i
+		fi
+	done
+	if [ $found = false ]; then
+		echo -1
+	fi
+}
+
+#####################
+
+addCommitToLogFile () {
+	#assumptions: $1 is a repository index, $2 is a commit message, $3 is date, $4 is commit timestamp (optional), log file exists
+	cd $HOME
+	cd ./${repositoryPaths[$1]}/.${repositories[$1]}
+	echo -e "${3}\t${2}\t$(whoami)\t${4}" >> ${logFile}
+}
+
+#####################
+
+saveConfig () {
+	cd $HOME
+	rm $configFile
+	touch $configFile 
+	for i in ${!repositories[@]}; do
+		if [ "${repositories[$i]}" != "" ]; then
+			echo "${repositories[$i]}" >> $configFile
+		fi
+		if [ "${repositoryPaths[$i]}" != "" ]; then
+			echo "${repositoryPaths[$i]}" >> $configFile
+		fi
+	done
+	if [ "${#passwordRepos[@]}" -gt 0 ]; then
+		rm $passwordsFile
+		touch $passwordsFile
+		for i in ${!passwordRepos[@]}; do
+			echo ${passwordRepos[$i]} >> $passwordsFile
+			echo ${passwords[$i]} >> $passwordsFile
+		done
+		# echo "Set an ecnryption password"
+		gpg --passphrase "test" --batch -c $passwordsFile
+		rm $passwordsFile
+	fi
+}
+
+loadConfig () {
+	cd $HOME
+	if [ -f "$configFile" ]; then
+		odd=true
+		while read line; do
+			if [ $odd = true ]; then
+				repositories[${#repositories[@]}]=$line
+				odd=false
+			else
+				repositoryPaths[${#repositoryPaths[@]}]=$line
+				odd=true
+			fi
+		done < $configFile
+	fi
+	if [ -f "$passwordsFileEncrypted" ]; then
+		# echo "Enter an ecnryption password"
+		gpg --passphrase "test" --batch -d $passwordsFileEncrypted > $passwordsFile
+		odd=true
+		while read line; do
+			if [ $odd = true ]; then
+				passwordRepos[${#passwordRepos[@]}]=$line
+				odd=false
+			else
+				passwords[${#passwords[@]}]=$line
+				odd=true
+			fi
+		done < $passwordsFile
+		rm $passwordsFile
+	fi
+}
+
+###############
+
+findPasswordIndex () {
+	found=false
+	for i in ${!passwordRepos[@]}; do
+		if [ "${passwordRepos[$i]}" = "$1" ]; then
+			found=true
+			echo $i
+		fi
+	done
+	if [ $found = false ]; then
+		echo -1
+	fi
+}
+
+validatePassword () {
+	#assumptions: $1 is a repository index
+	if [ "$1" != "-1" ]; then
+		echo "Enter repository password: " > $(tty)
+		read -s input
+		if [ "$input" = "${passwords[$1]}" ]; then
+			echo 0
+		else
+			echo "Password is incorrect" > $(tty)
+			echo 1
+		fi
+	else
+		echo 0
+	fi
+}
+
+#################
 
 # Validation for general 
 if [ $# -eq 0 ]; then
