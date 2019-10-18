@@ -1,11 +1,15 @@
 #!/bin/bash
 
 configFile="jet.cfg"
+passwordsFile="jet-passwords.txt"
+passwordsFileEncrypted="jet-passwords.txt.gpg"
 logFile="log.txt"
 stagingFolder="staging"
 backupFolder="backup"
 #repositories - array of repository names, initialised during config reading
 #repositoryPaths - array of repository paths from home folder, initialised during config reading
+#passwords
+#passwordRepos
 
 loadConfig () {
 	cd $HOME
@@ -21,6 +25,21 @@ loadConfig () {
 			fi
 		done < $configFile
 	fi
+	if [ -f "$passwordsFileEncrypted" ]; then
+		# echo "Enter an ecnryption password"
+		gpg --passphrase "test" --batch -d $passwordsFileEncrypted > $passwordsFile
+		odd=true
+		while read line; do
+			if [ $odd = true ]; then
+				passwordRepos[${#passwordRepos[@]}]=$line
+				odd=false
+			else
+				passwords[${#passwords[@]}]=$line
+				odd=true
+			fi
+		done < $passwordsFile
+		rm $passwordsFile
+	fi
 }
 
 saveConfig () {
@@ -35,6 +54,17 @@ saveConfig () {
 			echo "${repositoryPaths[$i]}" >> $configFile
 		fi
 	done
+	if [ "${#passwordRepos[@]}" -gt 0 ]; then
+		rm $passwordsFile
+		touch $passwordsFile
+		for i in ${!passwordRepos[@]}; do
+			echo ${passwordRepos[$i]} >> $passwordsFile
+			echo ${passwords[$i]} >> $passwordsFile
+		done
+		# echo "Set an ecnryption password"
+		gpg --passphrase "test" --batch -c $passwordsFile
+		rm $passwordsFile
+	fi
 }
 
 createRepository () {
@@ -287,6 +317,8 @@ doAction () {
 			printCommits $(findRepoIndex $2);;
 		zip)
 			zipRep $(findRepoIndex $2);;
+		setPassword)
+			setPassword $3 $2;;
 		autobackup)
 			automaticBackups $(findRepoIndex $2) &
 			echo -e "Automatically backing up all repository files. To stop enter \"kill $!\"";;
@@ -324,12 +356,51 @@ createUserGroup () {
 }
 
 findRepoIndex () {
-	# shopt -s nocasematch
+	found=false
 	for i in ${!repositories[@]}; do
 		if [ "${repositories[$i]}" = "$1" ]; then
+			found=true
 			echo $i
 		fi
 	done
+	if [ $found = false ]; then
+		echo -1
+	fi
+}
+
+findPasswordIndex () {
+	found=false
+	for i in ${!passwordRepos[@]}; do
+		if [ "${passwordRepos[$i]}" = "$1" ]; then
+			found=true
+			echo $i
+		fi
+	done
+	if [ $found = false ]; then
+		echo -1
+	fi
+}
+
+setPassword () {
+	#assumptions: $1 is a password, $2 is a repository name
+	passwordRepos[${#passwordRepos[@]}]=$2
+	passwords[${#passwords[@]}]="$1"
+}
+
+validatePassword () {
+	#assumptions: $1 is a repository index
+	if [ "$1" != "-1" ]; then
+		echo "Enter repository password: " > $(tty)
+		read -s input
+		if [ "$input" = "${passwords[$1]}" ]; then
+			echo 0
+		else
+			echo "Password is incorrect" > $(tty)
+			echo 1
+		fi
+	else
+		echo 0
+	fi
 }
 
 revertCommit () {
